@@ -20,7 +20,7 @@ export function Controls({ lat, lng, locationLoading, onClaim, onBuy, myId, myCo
     const isOwnedByOther = tile && tile.ownerId !== myId;
 
     return (
-        <div className="absolute bottom-6 left-0 right-0 px-4 z-[1000] flex flex-col items-center gap-4">
+        <div className="absolute bottom-20 left-0 right-0 px-4 z-[1000] flex flex-col items-center gap-4">
             {isOwnedByMe && (
                 <div className="flex animate-bounce bg-green-500/90 text-white px-4 py-2 rounded-full shadow-lg font-bold text-sm">
                     ✨ You own this square! Move to a new one!
@@ -36,9 +36,8 @@ export function Controls({ lat, lng, locationLoading, onClaim, onBuy, myId, myCo
             <div className="bg-slate-900/80 backdrop-blur-md text-white p-3 rounded-lg shadow-lg flex items-center gap-3 border border-slate-700">
                 <MapPin className="text-blue-400 w-5 h-5" />
                 <div className="text-xs font-mono">
-                    <div>LAT: {lat?.toFixed(5)}</div>
-                    <div>LNG: {lng?.toFixed(5)}</div>
-                    <div className="text-slate-400 mt-1">GRID: {currentKey}</div>
+                    <div>LAT: {lat?.toFixed(4)}</div>
+                    <div>LNG: {lng?.toFixed(4)}</div>
                 </div>
             </div>
 

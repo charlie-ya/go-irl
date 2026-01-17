@@ -1,0 +1,49 @@
+# Multi-Computer Sync Guide
+
+This guide explains how to keep your **goIRL** project synchronized between your home and work computers.
+
+## Computer 1 (Current Machine)
+We have already:
+1.  Initialized the repository.
+2.  Committed all local files.
+3.  Added the remote link.
+
+**Action Required:**
+If the push didn't happen automatically (due to missing credentials), open your terminal and run:
+```bash
+git push -u origin main
+```
+*Enter your GitHub credentials if prompted.*
+
+## Computer 2 (New Machine)
+To start working on the second computer:
+
+1.  Open your terminal/command prompt.
+2.  Navigate to where you want the project.
+3.  Run the clone command:
+    ```bash
+    git clone https://github.com/charlie-ya/go-irl.git
+    ```
+4.  Enter the directory:
+    ```bash
+    cd go-irl
+    ```
+5.  Install dependencies:
+    ```bash
+    npm install
+    ```
+
+## Daily Workflow
+### Before starting work (on either machine)
+Always get the latest changes first:
+```bash
+git pull origin main
+```
+
+### After finishing work
+Save your changes and upload them:
+```bash
+git add .
+git commit -m "Description of your changes"
+git push origin main
+```

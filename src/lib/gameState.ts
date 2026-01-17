@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { db, auth } from './firebase';
-import { collection, doc, onSnapshot, setDoc, updateDoc, increment } from 'firebase/firestore';
+import { collection, doc, onSnapshot, setDoc, updateDoc, increment, getDocs } from 'firebase/firestore';
+import { findEnclosedAreas, type Territory } from './captureLogic';
 
 export interface Tile {
     ownerId: string;
+    explorerName: string; // Display name for the owner
     color: string;
     timestamp: number;
 }
@@ -12,13 +14,18 @@ export type GameState = Record<string, Tile>;
 
 export interface PlayerState {
     id: string;
+    explorerName: string; // User-chosen display name
     color: string;
     balance: number;
+    hasCompletedOnboarding: boolean;
 }
+
+export { type Territory };
 
 export function useGameState() {
     const [claims, setClaims] = useState<GameState>({});
     const [player, setPlayer] = useState<PlayerState | null>(null);
+    const [territories, setTerritories] = useState<Territory[]>([]);
 
     // Listen to Global Tiles
     useEffect(() => {
@@ -43,17 +50,28 @@ export function useGameState() {
             if (docSnap.exists()) {
                 setPlayer(docSnap.data() as PlayerState);
             } else {
-                // Initialize new player if not exists
-                const newPlayer: PlayerState = {
-                    id: uid,
-                    color: '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0'),
-                    balance: 100
-                };
-                setDoc(playerRef, newPlayer);
+                // Player doesn't exist - onboarding needed
+                setPlayer(null);
             }
         });
         return () => unsub();
     }, [auth.currentUser]);
+
+    // Listen to Territories
+    useEffect(() => {
+        const unsub = onSnapshot(collection(db, "territories"), (snapshot) => {
+            const newTerritories: Territory[] = [];
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                newTerritories.push({
+                    id: doc.id,
+                    ...data
+                } as Territory);
+            });
+            setTerritories(newTerritories);
+        });
+        return () => unsub();
+    }, []);
 
     const claimSquare = async (gridKey: string) => {
         if (!player || !auth.currentUser) return;
@@ -72,6 +90,7 @@ export function useGameState() {
         // 2. Optimistic Tile Claim
         const newTile: Tile = {
             ownerId: player.id,
+            explorerName: player.explorerName,
             color: player.color, // Use optimistic color
             timestamp: Date.now(),
         };
@@ -88,6 +107,9 @@ export function useGameState() {
                 }),
                 setDoc(tileRef, newTile)
             ]);
+
+            // Check for new territories after claiming
+            await detectAndSaveTerritories(player.id, player.explorerName, player.color);
 
         } catch (e) {
             console.error("Transaction failed, reverting state", e);
@@ -112,6 +134,7 @@ export function useGameState() {
             [gridKey]: {
                 ...tile,
                 ownerId: player.id,
+                explorerName: player.explorerName,
                 color: player.color,
                 timestamp: Date.now()
             }
@@ -123,6 +146,7 @@ export function useGameState() {
             // Transfer to me
             await setDoc(tileRef, {
                 ownerId: player.id,
+                explorerName: player.explorerName,
                 color: player.color,
                 timestamp: Date.now()
             });
@@ -139,10 +163,103 @@ export function useGameState() {
         }
     };
 
+    const detectAndSaveTerritories = async (playerId: string, explorerName: string, color: string) => {
+        try {
+            // Get current claims
+            const tilesSnapshot = await getDocs(collection(db, "tiles"));
+            const currentClaims: Record<string, Tile> = {};
+            tilesSnapshot.forEach(doc => {
+                currentClaims[doc.id] = doc.data() as Tile;
+            });
+
+            // Find enclosed areas
+            const enclosedAreas = findEnclosedAreas(currentClaims, playerId);
+
+            // Save new territories
+            for (const area of enclosedAreas) {
+                const territoryId = `${playerId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                const territory: Territory = {
+                    id: territoryId,
+                    ownerId: playerId,
+                    explorerName,
+                    color,
+                    perimeterSquares: area.perimeterSquares,
+                    enclosedSquares: area.enclosedSquares,
+                    capturedAt: Date.now(),
+                    isActive: true
+                };
+
+                await setDoc(doc(db, "territories", territoryId), territory);
+            }
+        } catch (e) {
+            console.error("Failed to detect territories", e);
+        }
+    };
+
+    const createPlayer = async (explorerName: string, color: string) => {
+        if (!auth.currentUser) return;
+        const uid = auth.currentUser.uid;
+        const playerRef = doc(db, "players", uid);
+
+        const newPlayer: PlayerState = {
+            id: uid,
+            explorerName,
+            color,
+            balance: 100,
+            hasCompletedOnboarding: true
+        };
+
+        try {
+            await setDoc(playerRef, newPlayer);
+        } catch (e) {
+            console.error("Failed to create player", e);
+            alert("Failed to create profile. Please try again.");
+        }
+    };
+
+    const updatePlayerProfile = async (explorerName: string, color: string) => {
+        if (!player || !auth.currentUser) return;
+
+        const uid = auth.currentUser.uid;
+        const playerRef = doc(db, "players", uid);
+
+        try {
+            // Update player profile
+            await updateDoc(playerRef, {
+                explorerName,
+                color
+            });
+
+            // Update all tiles owned by this player
+            const tilesSnapshot = await getDocs(collection(db, "tiles"));
+            const updatePromises: Promise<void>[] = [];
+
+            tilesSnapshot.forEach((tileDoc) => {
+                const tile = tileDoc.data() as Tile;
+                if (tile.ownerId === uid) {
+                    updatePromises.push(
+                        updateDoc(doc(db, "tiles", tileDoc.id), {
+                            explorerName,
+                            color
+                        })
+                    );
+                }
+            });
+
+            await Promise.all(updatePromises);
+        } catch (e) {
+            console.error("Failed to update profile", e);
+            alert("Failed to update profile. Please try again.");
+        }
+    };
+
     return {
         claims,
         player,
+        territories,
         claimSquare,
-        buySquare
+        buySquare,
+        createPlayer,
+        updatePlayerProfile
     };
 }

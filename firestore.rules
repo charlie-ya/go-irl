@@ -1,0 +1,26 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Players collection - users can only read/write their own profile
+    match /players/{userId} {
+      allow read: if true; // Anyone can read player profiles (for explorer names)
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Tiles collection - authenticated users can claim tiles
+    match /tiles/{tileId} {
+      allow read: if true; // Anyone can read tiles
+      allow create: if request.auth != null; // Authenticated users can claim
+      allow update, delete: if request.auth != null && 
+                               resource.data.ownerId == request.auth.uid; // Only owner can modify
+    }
+    
+    // Territories collection - read-only for all, system creates
+    match /territories/{territoryId} {
+      allow read: if true; // Anyone can read territories
+      allow write: if request.auth != null; // Authenticated users can create territories
+    }
+  }
+}

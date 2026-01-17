@@ -12,3 +12,20 @@ body,
   overflow: hidden;
   /* Prevent scrolling on map view */
 }
+
+/* Explorer name tooltips */
+.explorer-name-tooltip {
+  background: rgba(0, 0, 0, 0.8) !important;
+  border: none !important;
+  border-radius: 4px !important;
+  color: white !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  padding: 2px 6px !important;
+  box-shadow: none !important;
+  pointer-events: none !important;
+}
+
+.explorer-name-tooltip::before {
+  display: none !important;
+}
