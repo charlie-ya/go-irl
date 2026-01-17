@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { MapContainer, TileLayer, Polygon, Circle, Tooltip, useMapEvents } from 'react-leaflet';
+import { useState, useRef, useEffect } from 'react';
+import { MapContainer, TileLayer, Polygon, Circle, Tooltip, useMapEvents, useMap } from 'react-leaflet';
 import { getGridKey, getGridSquareBounds } from '../lib/gridSystem';
 import { TerritoryRenderer } from './TerritoryRenderer';
 import type { Territory } from '../lib/gameState';
@@ -15,6 +15,24 @@ interface MapBoardProps {
     territories: Territory[];
 }
 
+// Component to update user position marker without re-centering map
+function LocationTracker({ lat, lng }: { lat: number; lng: number }) {
+    const map = useMap();
+
+    useEffect(() => {
+        // Only center on first load or if user is very far from current view
+        const center = map.getCenter();
+        const distance = map.distance(center, [lat, lng]);
+
+        // If user is more than 500m away from center, recenter (they probably moved significantly)
+        if (distance > 500) {
+            map.setView([lat, lng], map.getZoom());
+        }
+    }, [lat, lng, map]);
+
+    return null;
+}
+
 function ZoomHandler({ onZoomChange }: { onZoomChange: (zoom: number) => void }) {
     const map = useMapEvents({
         zoomend: () => {
@@ -26,6 +44,15 @@ function ZoomHandler({ onZoomChange }: { onZoomChange: (zoom: number) => void })
 
 export function MapBoard({ locationIsReady, lat, lng, claims, territories }: MapBoardProps) {
     const [zoom, setZoom] = useState(18);
+    // Store initial center to prevent re-centering on location updates
+    const initialCenter = useRef<[number, number]>([lat, lng]);
+
+    // Update initial center only when location first becomes ready
+    useEffect(() => {
+        if (locationIsReady && lat && lng && (initialCenter.current[0] === 0 || initialCenter.current[1] === 0)) {
+            initialCenter.current = [lat, lng];
+        }
+    }, [locationIsReady, lat, lng]);
 
     if (!locationIsReady) {
         return <div className="flex items-center justify-center h-full w-full bg-slate-900 text-white">Locating...</div>;
@@ -35,8 +62,9 @@ export function MapBoard({ locationIsReady, lat, lng, claims, territories }: Map
     const currentGridKey = getGridKey(lat, lng);
     const currentBounds = getGridSquareBounds(currentGridKey);
 
-    // Determine if we should show explorer names (only when zoomed in 2x from default)
-    const showExplorerNames = zoom >= 20;
+    // Determine if we should show explorer names when zoomed in
+    // Show names at zoom 19 (tiles will be upscaled 2x from zoom 18)
+    const showExplorerNames = zoom >= 19;
 
     // Prepare claimed polygons
     const claimedPolygons = Object.entries(claims).map(([key, tile]) => {
@@ -58,17 +86,21 @@ export function MapBoard({ locationIsReady, lat, lng, claims, territories }: Map
 
     return (
         <MapContainer
-            center={[lat, lng]}
+            center={initialCenter.current}
             zoom={18}
+            maxZoom={19}
             className="h-full w-full z-0"
             zoomControl={false}
             scrollWheelZoom={true}
         >
             <ZoomHandler onZoomChange={setZoom} />
+            <LocationTracker lat={lat} lng={lng} />
 
             <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                maxNativeZoom={18}
+                maxZoom={19}
             />
 
             {/* Render captured territories (below claimed squares) */}

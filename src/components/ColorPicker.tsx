@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { getColorValidationMessage } from '../lib/colorValidation';
 
 interface ColorPickerProps {
     selectedColor: string;
@@ -22,6 +23,20 @@ const PRESET_COLORS = [
 
 export function ColorPicker({ selectedColor, onColorChange }: ColorPickerProps) {
     const [showCustom, setShowCustom] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+    const handleColorChange = (color: string) => {
+        const validationMessage = getColorValidationMessage(color);
+
+        if (validationMessage) {
+            setErrorMessage(validationMessage);
+            // Don't update the color if it's invalid
+            return;
+        }
+
+        setErrorMessage(null);
+        onColorChange(color);
+    };
 
     return (
         <div className="space-y-4">
@@ -29,16 +44,22 @@ export function ColorPicker({ selectedColor, onColorChange }: ColorPickerProps) 
                 {PRESET_COLORS.map((color) => (
                     <button
                         key={color}
-                        onClick={() => onColorChange(color)}
+                        onClick={() => handleColorChange(color)}
                         className={`w-full aspect-square rounded-lg transition-all ${selectedColor === color
-                                ? 'ring-4 ring-white ring-offset-2 ring-offset-slate-800 scale-110'
-                                : 'hover:scale-105'
+                            ? 'ring-4 ring-white ring-offset-2 ring-offset-slate-800 scale-110'
+                            : 'hover:scale-105'
                             }`}
                         style={{ backgroundColor: color }}
                         aria-label={`Select color ${color}`}
                     />
                 ))}
             </div>
+
+            {errorMessage && (
+                <div className="bg-red-500/20 border border-red-500 text-red-200 px-4 py-2 rounded-lg text-sm">
+                    {errorMessage}
+                </div>
+            )}
 
             <button
                 onClick={() => setShowCustom(!showCustom)}
@@ -52,7 +73,7 @@ export function ColorPicker({ selectedColor, onColorChange }: ColorPickerProps) 
                     <input
                         type="color"
                         value={selectedColor}
-                        onChange={(e) => onColorChange(e.target.value)}
+                        onChange={(e) => handleColorChange(e.target.value)}
                         className="w-16 h-16 rounded-lg cursor-pointer"
                     />
                     <div className="flex-1">
@@ -62,7 +83,13 @@ export function ColorPicker({ selectedColor, onColorChange }: ColorPickerProps) 
                             onChange={(e) => {
                                 const val = e.target.value;
                                 if (/^#[0-9A-Fa-f]{0,6}$/.test(val)) {
-                                    onColorChange(val);
+                                    if (val.length === 7) {
+                                        handleColorChange(val);
+                                    } else {
+                                        // Allow typing but don't validate until complete
+                                        onColorChange(val);
+                                        setErrorMessage(null);
+                                    }
                                 }
                             }}
                             placeholder="#FF6B6B"
