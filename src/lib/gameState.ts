@@ -1,13 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { db, auth } from './firebase';
-import { collection, doc, onSnapshot, setDoc, updateDoc, increment, getDocs } from 'firebase/firestore';
+import { collection, doc, onSnapshot, setDoc, updateDoc, increment, getDocs, query, where } from 'firebase/firestore';
 import { findEnclosedAreas, type Territory } from './captureLogic';
+import { getGeohash, getGeohashWithNeighbors, calculateDistance, TILE_LOAD_RADIUS_METERS, LOCATION_UPDATE_THRESHOLD } from './geohashUtils';
+import { parseGridKey } from './gridSystem';
 
 export interface Tile {
     ownerId: string;
     explorerName: string; // Display name for the owner
     color: string;
     timestamp: number;
+    geohash: string;      // Geohash for spatial queries
+    lat: number;          // Latitude for distance calculations
+    lng: number;          // Longitude for distance calculations
 }
 
 export type GameState = Record<string, Tile>;
@@ -22,23 +27,61 @@ export interface PlayerState {
 
 export { type Territory };
 
-export function useGameState() {
+export function useGameState(userLat?: number, userLng?: number) {
     const [claims, setClaims] = useState<GameState>({});
     const [player, setPlayer] = useState<PlayerState | null>(null);
     const [territories, setTerritories] = useState<Territory[]>([]);
+    const lastQueryLocation = useRef<{ lat: number; lng: number } | null>(null);
 
-    // Listen to Global Tiles
+    // Listen to Nearby Tiles (200m radius)
     useEffect(() => {
-        const unsub = onSnapshot(collection(db, "tiles"), (snapshot) => {
-            const newClaims: GameState = {};
-            snapshot.forEach(doc => {
-                newClaims[doc.id] = doc.data() as Tile;
+        if (userLat === undefined || userLng === undefined) {
+            // No location yet, don't load tiles
+            return;
+        }
+
+        // Check if we need to update (user moved >50m)
+        if (lastQueryLocation.current) {
+            const distance = calculateDistance(
+                lastQueryLocation.current.lat,
+                lastQueryLocation.current.lng,
+                userLat,
+                userLng
+            );
+            if (distance < LOCATION_UPDATE_THRESHOLD) {
+                // User hasn't moved enough, keep existing listener
+                return;
+            }
+        }
+
+        // Update last query location
+        lastQueryLocation.current = { lat: userLat, lng: userLng };
+
+        // Get geohashes for user location + neighbors
+        const geohashes = getGeohashWithNeighbors(userLat, userLng);
+
+        // Create listeners for each geohash
+        const unsubscribers = geohashes.map(geohash => {
+            const q = query(collection(db, "tiles"), where("geohash", "==", geohash));
+            return onSnapshot(q, (snapshot) => {
+                const newClaims: GameState = {};
+                snapshot.forEach(doc => {
+                    const tile = doc.data() as Tile;
+                    // Filter to exact radius
+                    const distance = calculateDistance(userLat, userLng, tile.lat, tile.lng);
+                    if (distance <= TILE_LOAD_RADIUS_METERS) {
+                        newClaims[doc.id] = tile;
+                    }
+                });
+                // Merge with existing to prevent flicker
+                setClaims(prev => ({ ...prev, ...newClaims }));
             });
-            // Merge with existing to prevent flicker if local state is ahead
-            setClaims(prev => ({ ...prev, ...newClaims }));
         });
-        return () => unsub();
-    }, []);
+
+        return () => {
+            unsubscribers.forEach(unsub => unsub());
+        };
+    }, [userLat, userLng]);
 
     // Listen to My Player Data
     useEffect(() => {
@@ -88,11 +131,15 @@ export function useGameState() {
         setPlayer(p => p ? ({ ...p, balance: p.balance - 1 }) : null);
 
         // 2. Optimistic Tile Claim
+        const { lat, lng } = parseGridKey(gridKey);
         const newTile: Tile = {
             ownerId: player.id,
             explorerName: player.explorerName,
-            color: player.color, // Use optimistic color
+            color: player.color,
             timestamp: Date.now(),
+            geohash: getGeohash(lat, lng),
+            lat,
+            lng,
         };
         setClaims(prev => ({ ...prev, [gridKey]: newTile }));
         // --- Optimistic Update End ---
@@ -108,8 +155,24 @@ export function useGameState() {
                 setDoc(tileRef, newTile)
             ]);
 
-            // Check for new territories after claiming
-            await detectAndSaveTerritories(player.id, player.explorerName, player.color);
+            // Client-side territory detection using already-loaded tiles
+            const enclosedAreas = findEnclosedAreas(claims, player.id);
+
+            // Save any new territories found
+            for (const area of enclosedAreas) {
+                const territoryId = `${player.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                const territory: Territory = {
+                    id: territoryId,
+                    ownerId: player.id,
+                    explorerName: player.explorerName,
+                    color: player.color,
+                    perimeterSquares: area.perimeterSquares,
+                    enclosedSquares: area.enclosedSquares,
+                    capturedAt: Date.now(),
+                    isActive: true
+                };
+                await setDoc(doc(db, "territories", territoryId), territory);
+            }
 
         } catch (e) {
             console.error("Transaction failed, reverting state", e);
@@ -142,13 +205,17 @@ export function useGameState() {
 
         try {
             const tileRef = doc(db, "tiles", gridKey);
+            const { lat, lng } = parseGridKey(gridKey);
 
             // Transfer to me
             await setDoc(tileRef, {
                 ownerId: player.id,
                 explorerName: player.explorerName,
                 color: player.color,
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                geohash: getGeohash(lat, lng),
+                lat,
+                lng,
             });
 
             if (tile.ownerId && tile.ownerId !== player.id) {
@@ -163,38 +230,7 @@ export function useGameState() {
         }
     };
 
-    const detectAndSaveTerritories = async (playerId: string, explorerName: string, color: string) => {
-        try {
-            // Get current claims
-            const tilesSnapshot = await getDocs(collection(db, "tiles"));
-            const currentClaims: Record<string, Tile> = {};
-            tilesSnapshot.forEach(doc => {
-                currentClaims[doc.id] = doc.data() as Tile;
-            });
 
-            // Find enclosed areas
-            const enclosedAreas = findEnclosedAreas(currentClaims, playerId);
-
-            // Save new territories
-            for (const area of enclosedAreas) {
-                const territoryId = `${playerId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-                const territory: Territory = {
-                    id: territoryId,
-                    ownerId: playerId,
-                    explorerName,
-                    color,
-                    perimeterSquares: area.perimeterSquares,
-                    enclosedSquares: area.enclosedSquares,
-                    capturedAt: Date.now(),
-                    isActive: true
-                };
-
-                await setDoc(doc(db, "territories", territoryId), territory);
-            }
-        } catch (e) {
-            console.error("Failed to detect territories", e);
-        }
-    };
 
     const createPlayer = async (explorerName: string, color: string) => {
         if (!auth.currentUser) return;
@@ -230,20 +266,21 @@ export function useGameState() {
                 color
             });
 
-            // Update all tiles owned by this player
-            const tilesSnapshot = await getDocs(collection(db, "tiles"));
+            // Update all tiles owned by this player using indexed query
+            const userTilesQuery = query(
+                collection(db, "tiles"),
+                where("ownerId", "==", uid)
+            );
+            const tilesSnapshot = await getDocs(userTilesQuery);
             const updatePromises: Promise<void>[] = [];
 
             tilesSnapshot.forEach((tileDoc) => {
-                const tile = tileDoc.data() as Tile;
-                if (tile.ownerId === uid) {
-                    updatePromises.push(
-                        updateDoc(doc(db, "tiles", tileDoc.id), {
-                            explorerName,
-                            color
-                        })
-                    );
-                }
+                updatePromises.push(
+                    updateDoc(doc(db, "tiles", tileDoc.id), {
+                        explorerName,
+                        color
+                    })
+                );
             });
 
             await Promise.all(updatePromises);

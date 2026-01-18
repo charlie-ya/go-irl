@@ -129,7 +129,7 @@ export function findEnclosedAreas(
             const { squares: filled, hitBoundary } = floodFill(neighbor, claims, playerId, visited);
 
             // If we didn't hit a boundary, we found an enclosed area
-            if (!hitBoundary && filled.size > 0 && filled.size <= 50) {
+            if (!hitBoundary && filled.size > 0) {
                 // Find all perimeter squares
                 const perimeterSet = new Set<string>();
 

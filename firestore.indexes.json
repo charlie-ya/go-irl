@@ -1,4 +1,25 @@
 {
-    "indexes": [],
+    "indexes": [
+        {
+            "collectionGroup": "tiles",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "geohash",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "tiles",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "ownerId",
+                    "order": "ASCENDING"
+                }
+            ]
+        }
+    ],
     "fieldOverrides": []
 }

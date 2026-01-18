@@ -26,7 +26,10 @@ function App() {
 
   // Game Hooks (Only really active if we render consumers, but safe to call)
   const location = useGeolocation();
-  const { claims, player, territories, claimSquare, buySquare, createPlayer, updatePlayerProfile } = useGameState();
+  const { claims, player, territories, claimSquare, buySquare, createPlayer, updatePlayerProfile } = useGameState(
+    location.lat ?? undefined,
+    location.lng ?? undefined
+  );
 
   if (authLoading) return <div className="h-screen w-screen bg-slate-900 text-white flex items-center justify-center">Loading...</div>;
   if (!user) return <Login />;
