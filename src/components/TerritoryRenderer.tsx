@@ -7,28 +7,43 @@ interface TerritoryRendererProps {
 }
 
 export function TerritoryRenderer({ territories }: TerritoryRendererProps) {
+    // Track which squares have been rendered to avoid duplicate overlays
+    const renderedSquares = new Set<string>();
+    const squaresToRender: Array<{ gridKey: string; color: string; territoryId: string }> = [];
+
+    // Collect all unique enclosed squares
+    territories.forEach((territory) => {
+        if (!territory.isActive) return;
+
+        territory.enclosedSquares.forEach((gridKey) => {
+            if (!renderedSquares.has(gridKey)) {
+                renderedSquares.add(gridKey);
+                squaresToRender.push({
+                    gridKey,
+                    color: territory.color,
+                    territoryId: territory.id
+                });
+            }
+        });
+    });
+
     return (
         <>
-            {territories.map((territory) => {
-                if (!territory.isActive) return null;
-
-                // Render enclosed squares with transparent fill
-                return territory.enclosedSquares.map((gridKey) => {
-                    const bounds = getGridSquareBounds(gridKey);
-                    return (
-                        <Polygon
-                            key={`territory-${territory.id}-${gridKey}`}
-                            positions={bounds}
-                            pathOptions={{
-                                color: territory.color,
-                                fillColor: territory.color,
-                                fillOpacity: 0.25, // More transparent than regular squares
-                                weight: 0.5,
-                                opacity: 0.5
-                            }}
-                        />
-                    );
-                });
+            {squaresToRender.map(({ gridKey, color, territoryId }) => {
+                const bounds = getGridSquareBounds(gridKey);
+                return (
+                    <Polygon
+                        key={`territory-${territoryId}-${gridKey}`}
+                        positions={bounds}
+                        pathOptions={{
+                            color: color,
+                            fillColor: color,
+                            fillOpacity: 0.25, // More transparent than regular squares
+                            weight: 0.5,
+                            opacity: 0.5
+                        }}
+                    />
+                );
             })}
         </>
     );
