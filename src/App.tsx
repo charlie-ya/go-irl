@@ -39,10 +39,11 @@ function App() {
     [claims, player]
   );
 
-  const territoriesCount = useMemo(() =>
-    territories.filter(t => t.ownerId === player?.id && t.isActive).length,
-    [territories, player]
-  );
+  const territoriesCount = useMemo(() => {
+    return territories
+      .filter(t => t.ownerId === player?.id && t.isActive)
+      .reduce((total, territory) => total + territory.enclosedSquares.length, 0);
+  }, [territories, player]);
 
   if (authLoading) return <div className="h-screen w-screen bg-slate-900 text-white flex items-center justify-center">Loading...</div>;
   if (!user) return <Login />;
