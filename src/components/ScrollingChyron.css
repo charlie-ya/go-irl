@@ -1,0 +1,84 @@
+/* Blur zone behind chyron */
+.chyron-blur-zone {
+    position: absolute;
+    bottom: 70px;
+    left: 0;
+    right: 0;
+    height: 56px;
+    backdrop-filter: blur(4px);
+    z-index: 999;
+}
+
+/* Scrolling Chyron */
+.chyron-container {
+    position: absolute;
+    bottom: 80px;
+    left: 0;
+    right: 0;
+    height: 36px;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(8px);
+    border-top: 2px solid rgba(59, 130, 246, 0.8);
+    border-bottom: 2px solid rgba(59, 130, 246, 0.8);
+    overflow: hidden;
+    z-index: 1000;
+}
+
+.chyron-wrapper {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    white-space: nowrap;
+    animation: scroll-left 40s linear infinite;
+}
+
+@keyframes scroll-left {
+    0% {
+        transform: translateX(0);
+    }
+
+    100% {
+        transform: translateX(-50%);
+    }
+}
+
+.chyron-content {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 20px;
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.chyron-separator {
+    display: inline-block;
+    margin: 0 16px;
+    color: rgba(59, 130, 246, 0.8);
+    font-size: 16px;
+}
+
+.chyron-icon {
+    margin-right: 8px;
+    font-size: 16px;
+}
+
+.chyron-message {
+    display: inline-block;
+}
+
+.chyron-message.tutorial {
+    color: #60a5fa;
+}
+
+.chyron-message.user {
+    color: #fbbf24;
+}
+
+.chyron-message.system {
+    color: #34d399;
+}
+
+.chyron-message.alert {
+    color: #ef4444;
+}

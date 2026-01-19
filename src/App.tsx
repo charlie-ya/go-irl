@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { MapBoard } from './components/MapBoard';
 import { Controls } from './components/Controls';
 import { Login } from './components/Login';
 import { Onboarding } from './components/Onboarding';
 import { ProfileEditor } from './components/ProfileEditor';
+import { StatsPanel } from './components/StatsPanel';
+import { ScrollingChyron } from './components/ScrollingChyron';
 import { useGeolocation } from './lib/useGeolocation';
 import { useGameState } from './lib/gameState';
 import { auth, logout } from './lib/firebase';
@@ -29,6 +31,17 @@ function App() {
   const { claims, player, territories, claimSquare, buySquare, createPlayer, updatePlayerProfile } = useGameState(
     location.lat ?? undefined,
     location.lng ?? undefined
+  );
+
+  // Calculate stats
+  const tilesCount = useMemo(() =>
+    Object.values(claims).filter(tile => tile.ownerId === player?.id).length,
+    [claims, player]
+  );
+
+  const territoriesCount = useMemo(() =>
+    territories.filter(t => t.ownerId === player?.id && t.isActive).length,
+    [territories, player]
   );
 
   if (authLoading) return <div className="h-screen w-screen bg-slate-900 text-white flex items-center justify-center">Loading...</div>;
@@ -79,13 +92,17 @@ function App() {
         territories={territories}
       />
 
-      {/* Coin Balance Display */}
+      {/* Stats Panel */}
       {player && (
-        <div className="absolute top-4 right-4 z-[1000] bg-slate-700 text-white font-bold px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
-          <span className="text-xl">🪙</span>
-          <span>{player.balance}</span>
-        </div>
+        <StatsPanel
+          coins={player.balance}
+          tilesCount={tilesCount}
+          territoriesCount={territoriesCount}
+        />
       )}
+
+      {/* Scrolling Chyron */}
+      <ScrollingChyron />
 
       {location.error && (
         <div className="absolute top-0 left-0 right-0 bg-red-500 text-white text-center p-2 z-[2000]">

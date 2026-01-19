@@ -113,24 +113,30 @@ export function findEnclosedAreas(
     const territories: Array<{ perimeterSquares: string[]; enclosedSquares: string[] }> = [];
     const playerSquares = Object.keys(claims).filter(key => claims[key].ownerId === playerId);
 
-    // For each player square, check if it's part of an enclosing perimeter
+    // Track which empty areas we've already processed
+    const processedAreas = new Set<string>();
     const processedPerimeters = new Set<string>();
 
+    // For each player square, check neighbors for potential enclosed areas
     for (const square of playerSquares) {
-        // Get all neighbors of this square
         const neighbors = getOrthogonalNeighbors(square);
 
         for (const neighbor of neighbors) {
-            // Skip if this neighbor is owned by the player
+            // Skip if already owned by player or already processed
             if (claims[neighbor]?.ownerId === playerId) continue;
+            if (processedAreas.has(neighbor)) continue;
 
             // Try flood fill from this neighbor
             const visited = new Set<string>();
             const { squares: filled, hitBoundary } = floodFill(neighbor, claims, playerId, visited);
 
-            // If we didn't hit a boundary, we found an enclosed area
+            // Mark all filled squares as processed
+            filled.forEach(sq => processedAreas.add(sq));
+
+            // If we didn't hit a boundary and found squares, we have an enclosed area
+            // The flood fill already validates that the area is finite and surrounded
             if (!hitBoundary && filled.size > 0) {
-                // Find all perimeter squares
+                // Find all perimeter squares (player squares touching the filled area)
                 const perimeterSet = new Set<string>();
 
                 for (const enclosedSquare of filled) {
@@ -142,7 +148,7 @@ export function findEnclosedAreas(
                     }
                 }
 
-                // Check if this is a new perimeter
+                // Check if this is a new perimeter and is connected
                 const perimeterKey = Array.from(perimeterSet).sort().join('|');
                 if (!processedPerimeters.has(perimeterKey) && isConnectedPerimeter(perimeterSet)) {
                     processedPerimeters.add(perimeterKey);

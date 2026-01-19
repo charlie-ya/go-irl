@@ -1,0 +1,35 @@
+.stats-panel {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: rgba(30, 41, 59, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    z-index: 1000;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 0;
+}
+
+.stat-item:not(:last-child) {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.stat-icon {
+    font-size: 24px;
+}
+
+.stat-value {
+    color: white;
+    font-weight: bold;
+    font-size: 18px;
+    min-width: 40px;
+    text-align: right;
+}
