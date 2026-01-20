@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { db, auth } from './firebase';
-import { collection, doc, onSnapshot, setDoc, updateDoc, increment, getDocs, query, where } from 'firebase/firestore';
+import { collection, doc, onSnapshot, setDoc, updateDoc, increment, getDocs, deleteDoc, query, where } from 'firebase/firestore';
 import { findEnclosedAreas, type Territory } from './captureLogic';
 import { getGeohash, getGeohashWithNeighbors, calculateDistance, TILE_LOAD_RADIUS_METERS, LOCATION_UPDATE_THRESHOLD } from './geohashUtils';
 import { parseGridKey } from './gridSystem';
@@ -157,6 +157,16 @@ export function useGameState(userLat?: number, userLng?: number) {
 
             // Client-side territory detection using already-loaded tiles
             const enclosedAreas = findEnclosedAreas(claims, player.id);
+
+            // Delete old territories for this player before creating new ones
+            // This prevents duplication since we recalculate all territories each time
+            const oldTerritoriesQuery = query(
+                collection(db, "territories"),
+                where("ownerId", "==", player.id)
+            );
+            const oldTerritoriesSnapshot = await getDocs(oldTerritoriesQuery);
+            const deletePromises = oldTerritoriesSnapshot.docs.map(doc => deleteDoc(doc.ref));
+            await Promise.all(deletePromises);
 
             // Save any new territories found
             for (const area of enclosedAreas) {
