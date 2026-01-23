@@ -65,9 +65,9 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                         <div className="w-20 h-20 mx-auto bg-blue-500 rounded-full flex items-center justify-center">
                             <MapPin className="w-10 h-10 text-white" />
                         </div>
-                        <h1 className="text-3xl font-bold text-white">Welcome to goIRL!</h1>
+                        <h1 className="text-3xl font-bold text-white">Welcome to Roamin' Empire!</h1>
                         <p className="text-slate-300 text-lg leading-relaxed">
-                            Claim real-world territory by walking around your city. Enclose areas to capture them, just like in the game of GO!
+                            Build your empire by walking! Claim real-world territory and conquer the map, one square at a time.
                         </p>
                         <ul className="text-left text-slate-300 space-y-2">
                             <li className="flex items-start gap-2">

@@ -9,10 +9,10 @@ export function Login() {
                     <Gamepad2 className="w-16 h-16 text-white" />
                 </div>
                 <h1 className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-400 to-purple-400 text-transparent bg-clip-text">
-                    GoIRL
+                    Roamin' Empire
                 </h1>
                 <p className="text-slate-400 text-center max-w-xs">
-                    Conquer the world, one square at a time.
+                    Build your empire by walking.
                 </p>
             </div>
 
