@@ -1,7 +1,7 @@
 {
-    "name": "goIRL",
-    "short_name": "goIRL",
-    "description": "Claim real-world territory by walking around your city",
+    "name": "Roamin' Empire",
+    "short_name": "Roamin' Empire",
+    "description": "Build your empire by walking! Claim real-world territory and conquer the map.",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#0f172a",

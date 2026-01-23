@@ -1,73 +1,103 @@
-# React + TypeScript + Vite
+# Roamin' Empire 🏛️
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**Build your empire by walking!** Roamin' Empire is a location-based strategy game where you claim real-world territory by exploring your city on foot.
 
-Currently, two official plugins are available:
+## 🎮 Gameplay
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Walk to Conquer:** Claim 10m grid squares by walking through them
+- **Build Your Empire:** Enclose areas to capture entire territories
+- **Strategic Expansion:** Plan your routes to maximize territorial control
+- **Real-Time Competition:** See other players' empires on the map
 
-## React Compiler
+## 🚀 Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Location-Based:** Uses GPS to track your real-world position
+- **Optimized Performance:** Smart tile loading and speed detection
+- **Mobile-First:** PWA with offline support
+- **Real-Time Sync:** Firebase-powered multiplayer
 
-## Expanding the ESLint configuration
+## 🛠️ Tech Stack
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- **Frontend:** React + TypeScript + Vite
+- **Maps:** Leaflet + React-Leaflet
+- **Backend:** Firebase (Auth + Firestore)
+- **Styling:** Tailwind CSS
+- **Geospatial:** Geohashing for efficient queries
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## 📦 Setup
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### Prerequisites
+- Node.js 18+
+- Firebase account
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Installation
+
+```bash
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp .env.example .env.local
+# Add your Firebase config to .env.local
+
+# Run development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Deploy to Firebase
+npm run deploy
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 🏗️ Project Structure
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
 ```
+src/
+├── components/     # React components
+├── lib/           # Utilities and hooks
+│   ├── firebase.ts        # Firebase config
+│   ├── gameState.ts       # Game state management
+│   ├── geohashUtils.ts    # Geospatial utilities
+│   ├── speedDetection.ts  # Movement speed tracking
+│   └── ...
+└── App.tsx        # Main app component
+```
+
+## 🎯 Key Features
+
+### Speed Detection
+Automatically pauses tile loading when moving >5 km/h (in vehicles) to save database costs and battery.
+
+### Geohashing
+Uses precision-6 geohashing for efficient spatial queries, loading only tiles within 200m radius.
+
+### Territory Detection
+Client-side algorithm detects enclosed areas using flood-fill, creating territories automatically.
+
+## 📱 PWA Support
+
+Roamin' Empire is a Progressive Web App:
+- Install to home screen
+- Offline map caching
+- Full-screen experience
+- Native app feel
+
+## 🔐 Environment Variables
+
+```env
+VITE_FIREBASE_API_KEY=your_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_auth_domain
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_storage_bucket
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+```
+
+## 📄 License
+
+Private - All rights reserved
+
+---
+
+*Build your Roamin' Empire today!* 🏛️
