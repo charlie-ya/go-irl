@@ -30,7 +30,8 @@ function App() {
   const location = useGeolocation();
   const { claims, player, territories, claimSquare, buySquare, createPlayer, updatePlayerProfile } = useGameState(
     location.lat ?? undefined,
-    location.lng ?? undefined
+    location.lng ?? undefined,
+    location.isMovingTooFast
   );
 
   // Calculate stats
@@ -108,6 +109,13 @@ function App() {
       {location.error && (
         <div className="absolute top-0 left-0 right-0 bg-red-500 text-white text-center p-2 z-[2000]">
           Error: {location.error}
+        </div>
+      )}
+
+      {location.isMovingTooFast && (
+        <div className="absolute top-0 left-0 right-0 bg-amber-500 text-white text-center p-3 z-[2000] shadow-lg">
+          <div className="font-semibold">⚠️ Moving Too Fast</div>
+          <div className="text-sm mt-1">Tile loading paused. Slow down to walking speed to play.</div>
         </div>
       )}
 

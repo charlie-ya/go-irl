@@ -27,7 +27,7 @@ export interface PlayerState {
 
 export { type Territory };
 
-export function useGameState(userLat?: number, userLng?: number) {
+export function useGameState(userLat?: number, userLng?: number, isMovingTooFast?: boolean) {
     const [claims, setClaims] = useState<GameState>({});
     const [player, setPlayer] = useState<PlayerState | null>(null);
     const [territories, setTerritories] = useState<Territory[]>([]);
@@ -37,6 +37,12 @@ export function useGameState(userLat?: number, userLng?: number) {
     useEffect(() => {
         if (userLat === undefined || userLng === undefined) {
             // No location yet, don't load tiles
+            return;
+        }
+
+        // Skip tile loading if moving too fast (in vehicle)
+        if (isMovingTooFast) {
+            console.log('⚠️ Pausing tile loading - user moving too fast (likely in vehicle)');
             return;
         }
 
@@ -81,7 +87,7 @@ export function useGameState(userLat?: number, userLng?: number) {
         return () => {
             unsubscribers.forEach(unsub => unsub());
         };
-    }, [userLat, userLng]);
+    }, [userLat, userLng, isMovingTooFast]);
 
     // Listen to My Player Data
     useEffect(() => {
