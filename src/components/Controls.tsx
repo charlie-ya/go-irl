@@ -20,7 +20,7 @@ export function Controls({ lat, lng, locationLoading, onClaim, onBuy, myId, myCo
     const isOwnedByOther = tile && tile.ownerId !== myId;
 
     return (
-        <div className="absolute bottom-20 left-0 right-0 px-4 z-[1000] flex flex-col items-center gap-4">
+        <div className="absolute bottom-36 left-0 right-0 px-4 z-[1000] flex flex-col items-center gap-4">
             {isOwnedByMe && (
                 <div className="flex animate-bounce bg-green-500/90 text-white px-4 py-2 rounded-full shadow-lg font-bold text-sm">
                     ✨ You own this square! Move to a new one!
