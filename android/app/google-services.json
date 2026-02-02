@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "675006608980",
+    "project_id": "go-irl-443f4",
+    "storage_bucket": "go-irl-443f4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:675006608980:android:0fd056a02147b7eccd9fc1",
+        "android_client_info": {
+          "package_name": "com.goirl.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "675006608980-rta6062tiqs1cvesk8kc7j6eg3h8o9eh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.goirl.app",
+            "certificate_hash": "10361b88d78da8683e992b58bf8bf7c4331b97fd"
+          }
+        },
+        {
+          "client_id": "675006608980-ia7sek9fmsnrv2um9q2jfs7hg8umh2c9.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBnPiG-NH2gFln4WI_eQQ7-Ow2pFE8mZCY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "675006608980-ia7sek9fmsnrv2um9q2jfs7hg8umh2c9.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

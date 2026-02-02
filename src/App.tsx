@@ -6,10 +6,13 @@ import { Onboarding } from './components/Onboarding';
 import { ProfileEditor } from './components/ProfileEditor';
 import { StatsPanel } from './components/StatsPanel';
 import { ScrollingChyron } from './components/ScrollingChyron';
+import { SafetyWarning } from './components/SafetyWarning';
 import { useGeolocation } from './lib/useGeolocation';
 import { useGameState } from './lib/gameState';
 import { auth, logout } from './lib/firebase';
 import { onAuthStateChanged, type User } from 'firebase/auth';
+import { TextZoom } from '@capacitor/text-zoom';
+import { Capacitor } from '@capacitor/core';
 import { LogOut, Settings } from 'lucide-react';
 
 function App() {
@@ -17,8 +20,15 @@ function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
 
-  // Global Auth Listener
+  // Global Auth & Native Init Listener
   useEffect(() => {
+    // Lock text zoom on native devices
+    if (Capacitor.isNativePlatform()) {
+      TextZoom.set({ value: 1.0 }).catch((err: any) =>
+        console.warn('Failed to set TextZoom', err)
+      );
+    }
+
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setAuthLoading(false);
@@ -28,17 +38,20 @@ function App() {
 
   // Game Hooks (Only really active if we render consumers, but safe to call)
   const location = useGeolocation();
-  const { claims, player, territories, claimSquare, buySquare, createPlayer, updatePlayerProfile } = useGameState(
+  const {
+    claims, player, territories,
+    claimSquare, buySquare, createPlayer, updatePlayerProfile,
+    startPromotionCeremony, affirmPromotion, completePromotion, activeCeremony
+  } = useGameState(
     location.lat ?? undefined,
     location.lng ?? undefined,
     location.isMovingTooFast
   );
 
   // Calculate stats
-  const tilesCount = useMemo(() =>
-    Object.values(claims).filter(tile => tile.ownerId === player?.id).length,
-    [claims, player]
-  );
+  // Use global totalClaims from player profile (backfilled by gameState)
+  // Fallback to local count if undefined (should be rare/temporary)
+  const tilesCount = player?.totalClaims ?? Object.values(claims).filter(tile => tile.ownerId === player?.id).length;
 
   const territoriesCount = useMemo(() => {
     return territories
@@ -100,6 +113,7 @@ function App() {
           coins={player.balance}
           tilesCount={tilesCount}
           territoriesCount={territoriesCount}
+          rank={player.rank}
         />
       )}
 
@@ -126,11 +140,20 @@ function App() {
           locationLoading={location.loading}
           onClaim={claimSquare}
           onBuy={buySquare}
+
+          onStartCeremony={startPromotionCeremony}
+          onAffirm={affirmPromotion}
+          onCompleteCeremony={completePromotion}
+          activeCeremony={activeCeremony}
+
           myId={player.id}
           myColor={player.color}
           claims={claims}
         />
       )}
+
+      {/* Safety Warning Modal */}
+      <SafetyWarning />
     </div>
   );
 }

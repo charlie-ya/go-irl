@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { MapContainer, TileLayer, Polygon, Circle, Tooltip, useMapEvents, useMap } from 'react-leaflet';
 import { getGridKey, getGridSquareBounds } from '../lib/gridSystem';
+import { abbreviateUsername } from '../lib/stringUtils';
 import { TerritoryRenderer } from './TerritoryRenderer';
 import type { Territory } from '../lib/gameState';
 
@@ -62,9 +63,11 @@ export function MapBoard({ locationIsReady, lat, lng, claims, territories }: Map
     const currentGridKey = getGridKey(lat, lng);
     const currentBounds = getGridSquareBounds(currentGridKey);
 
-    // Determine if we should show explorer names when zoomed in
-    // Show names at zoom 19 (tiles will be upscaled 2x from zoom 18)
+    // Determine if we should show explorer names and grid
+    // Show names at zoom 19 (max zoom) only
     const showExplorerNames = zoom >= 19;
+    // Disable interactions at low zoom (<16) to prevent accidental clicks
+    const isInteractive = zoom >= 16;
 
     // Prepare claimed polygons
     const claimedPolygons = Object.entries(claims).map(([key, tile]) => {
@@ -74,10 +77,11 @@ export function MapBoard({ locationIsReady, lat, lng, claims, territories }: Map
                 key={key}
                 positions={bounds}
                 pathOptions={{ color: tile.color, fillOpacity: 0.5, weight: 1 }}
+                interactive={isInteractive} // Disable interactions if zoomed out
             >
                 {showExplorerNames && (
                     <Tooltip permanent direction="center" className="explorer-name-tooltip">
-                        {tile.explorerName}
+                        {abbreviateUsername(tile.explorerName)}
                     </Tooltip>
                 )}
             </Polygon>
@@ -103,7 +107,7 @@ export function MapBoard({ locationIsReady, lat, lng, claims, territories }: Map
                 maxZoom={19}
             />
 
-            {/* Render captured territories (below claimed squares) */}
+            {/* Render captured territories */}
             <TerritoryRenderer territories={territories} />
 
             {/* Render claimed squares */}

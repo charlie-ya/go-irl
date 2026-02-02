@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Roamin\' Empire</string>
+    <string name="title_activity_main">Roamin\' Empire</string>
+    <string name="package_name">com.goirl.app</string>
+    <string name="custom_url_scheme">com.goirl.app</string>
+    <string name="server_client_id">675006608980-ia7sek9fmsnrv2um9q2jfs7hg8umh2c9.apps.googleusercontent.com</string>
+</resources>

@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, signInWithCredential } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 
 // Firebase configuration loaded from environment variables
 // See .env.example for required variables
@@ -18,6 +19,24 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const googleProvider = new GoogleAuthProvider();
+
+export const signInWithGoogleNative = async () => {
+    try {
+        await GoogleAuth.initialize({
+            clientId: '675006608980-ia7sek9fmsnrv2um9q2jfs7hg8umh2c9.apps.googleusercontent.com',
+            scopes: ['profile', 'email'],
+            grantOfflineAccess: true,
+        });
+
+        const user = await GoogleAuth.signIn();
+        const idToken = user.authentication.idToken;
+        const credential = GoogleAuthProvider.credential(idToken);
+        await signInWithCredential(auth, credential);
+    } catch (error: any) {
+        console.error("Error signing in with Google Native", error);
+        alert(`Failed to sign in:\n${error.message}\n\nCheck console for more details.`);
+    }
+};
 
 export const signInWithGoogle = async () => {
     try {

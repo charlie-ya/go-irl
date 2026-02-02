@@ -11,6 +11,10 @@ body,
   padding: 0;
   overflow: hidden;
   /* Prevent scrolling on map view */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  touch-action: none;
+  /* Disable double-tap zoom */
 }
 
 /* Explorer name tooltips */

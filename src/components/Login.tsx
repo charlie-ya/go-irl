@@ -1,7 +1,16 @@
-import { signInWithGoogle } from '../lib/firebase';
+import { signInWithGoogle, signInWithGoogleNative } from '../lib/firebase';
 import { Gamepad2 } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 
 export function Login() {
+    const handleLogin = async () => {
+        if (Capacitor.isNativePlatform()) {
+            await signInWithGoogleNative();
+        } else {
+            await signInWithGoogle();
+        }
+    };
+
     return (
         <div className="flex flex-col items-center justify-center h-screen w-screen bg-slate-900 text-white p-4">
             <div className="mb-8 flex flex-col items-center gap-4 animate-fade-in-up">
@@ -17,7 +26,7 @@ export function Login() {
             </div>
 
             <button
-                onClick={signInWithGoogle}
+                onClick={handleLogin}
                 className="bg-white text-slate-900 font-bold py-3 px-8 rounded-full shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center gap-3"
             >
                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-6 h-6" alt="Google" />

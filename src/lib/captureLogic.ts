@@ -59,7 +59,8 @@ function floodFill(
         }
 
         // Check if we've gone too far (escaped the potential enclosure)
-        if (filled.size > 100) {
+        // Check if we've gone too far (escaped the potential enclosure)
+        if (filled.size > 500) {
             hitBoundary = true;
             break;
         }

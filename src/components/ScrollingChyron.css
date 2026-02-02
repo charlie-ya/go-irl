@@ -1,7 +1,7 @@
 /* Blur zone behind chyron */
 .chyron-blur-zone {
     position: absolute;
-    bottom: 70px;
+    bottom: 30px;
     left: 0;
     right: 0;
     height: 56px;
@@ -12,7 +12,7 @@
 /* Scrolling Chyron */
 .chyron-container {
     position: absolute;
-    bottom: 80px;
+    bottom: 40px;
     left: 0;
     right: 0;
     height: 36px;

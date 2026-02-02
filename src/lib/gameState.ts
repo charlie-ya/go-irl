@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { db, auth } from './firebase';
-import { collection, doc, onSnapshot, setDoc, updateDoc, increment, getDocs, deleteDoc, query, where } from 'firebase/firestore';
+import { collection, doc, onSnapshot, setDoc, updateDoc, increment, getDocs, deleteDoc, query, where, getCountFromServer, runTransaction } from 'firebase/firestore';
+
+
 import { findEnclosedAreas, type Territory } from './captureLogic';
 import { getGeohash, getGeohashWithNeighbors, calculateDistance, TILE_LOAD_RADIUS_METERS, LOCATION_UPDATE_THRESHOLD } from './geohashUtils';
-import { parseGridKey } from './gridSystem';
+import { parseGridKey, getGridKey } from './gridSystem';
 
 export interface Tile {
     ownerId: string;
@@ -23,6 +25,19 @@ export interface PlayerState {
     color: string;
     balance: number;
     hasCompletedOnboarding: boolean;
+    rank: 'Lowly Vassal' | 'Minion' | 'Centurion';
+    lastClaimTimestamp?: number; // Anti-Cheat
+    lastClaimLat?: number;      // Anti-Cheat
+    lastClaimLng?: number;      // Anti-Cheat
+    totalClaims?: number;       // Global scoreboard count
+}
+
+export interface PromotionCeremony {
+    id: string; // gridKey
+    ownerId: string;
+    ownerName: string;
+    startedAt: number;
+    affirmations: string[]; // List of userIds who affirmed
 }
 
 export { type Territory };
@@ -31,6 +46,7 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
     const [claims, setClaims] = useState<GameState>({});
     const [player, setPlayer] = useState<PlayerState | null>(null);
     const [territories, setTerritories] = useState<Territory[]>([]);
+    const [activeCeremony] = useState<PromotionCeremony | null>(null);
     const lastQueryLocation = useRef<{ lat: number; lng: number } | null>(null);
 
     // Listen to Nearby Tiles (200m radius)
@@ -95,9 +111,24 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
         const uid = auth.currentUser.uid;
         const playerRef = doc(db, "players", uid);
 
-        const unsub = onSnapshot(playerRef, (docSnap) => {
+        const unsub = onSnapshot(playerRef, async (docSnap) => {
             if (docSnap.exists()) {
-                setPlayer(docSnap.data() as PlayerState);
+                const data = docSnap.data() as PlayerState;
+                setPlayer(data);
+
+                // Self-Healing: Backfill totalClaims if missing
+                if (data.totalClaims === undefined) {
+                    try {
+                        console.log("Backfilling totalClaims...");
+                        // Use accurate count from server (cost: 1 read per 1000 index items essentially)
+                        const q = query(collection(db, "tiles"), where("ownerId", "==", uid));
+                        const snapshot = await getCountFromServer(q);
+                        const count = snapshot.data().count;
+                        await updateDoc(playerRef, { totalClaims: count });
+                    } catch (e) {
+                        console.error("Failed to backfill totalClaims", e);
+                    }
+                }
             } else {
                 // Player doesn't exist - onboarding needed
                 setPlayer(null);
@@ -129,6 +160,29 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
             return;
         }
 
+        // --- Anti-Cheat: Teleportation Guard ---
+        // Calculate distance/speed from last claim
+        const { lat, lng } = parseGridKey(gridKey); // Parse early for check
+        if (player.lastClaimTimestamp && player.lastClaimLat && player.lastClaimLng) {
+            const distance = calculateDistance(player.lastClaimLat, player.lastClaimLng, lat, lng);
+            const timeDiff = (Date.now() - player.lastClaimTimestamp) / 1000; // seconds
+
+            if (timeDiff > 0) {
+                const speedKmh = (distance / timeDiff) * 3.6;
+
+                // ADAPTIVE THRESHOLDS:
+                // 1. Short Distance (< 1km): Strict walking/running limit (20km/h)
+                // 2. Long Distance (> 1km): Travel limit (200km/h)
+                const maxSpeed = distance < 1000 ? 20 : 200;
+
+                if (speedKmh > maxSpeed) {
+                    const limitType = distance < 1000 ? "Walking/Running" : "Travel";
+                    alert(`🚫 ${limitType} speed exceeded! (${Math.round(speedKmh)} km/h). Slow down to claim.`);
+                    return;
+                }
+            }
+        }
+
         // --- Optimistic Update Start ---
         const previousPlayer = { ...player };
         const previousClaims = { ...claims };
@@ -137,7 +191,7 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
         setPlayer(p => p ? ({ ...p, balance: p.balance - 1 }) : null);
 
         // 2. Optimistic Tile Claim
-        const { lat, lng } = parseGridKey(gridKey);
+        // lat/lng already parsed above for Anti-Cheat
         const newTile: Tile = {
             ownerId: player.id,
             explorerName: player.explorerName,
@@ -151,15 +205,27 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
         // --- Optimistic Update End ---
 
         try {
+
             const tileRef = doc(db, "tiles", gridKey);
             const playerRef = doc(db, "players", auth.currentUser.uid);
 
             await Promise.all([
                 updateDoc(playerRef, {
-                    balance: increment(-1)
+                    balance: increment(-1),
+                    lastClaimTimestamp: Date.now(),
+                    lastClaimLat: lat,
+                    lastClaimLng: lng
                 }),
                 setDoc(tileRef, newTile)
             ]);
+
+            // UPDATE LOCALLY for next check
+            setPlayer(prev => prev ? ({
+                ...prev,
+                lastClaimTimestamp: Date.now(),
+                lastClaimLat: lat,
+                lastClaimLng: lng
+            }) : null);
 
             // Client-side territory detection using already-loaded tiles
             const enclosedAreas = findEnclosedAreas(claims, player.id);
@@ -221,32 +287,128 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
 
         try {
             const tileRef = doc(db, "tiles", gridKey);
+            const playerRef = doc(db, "players", player.id);
             const { lat, lng } = parseGridKey(gridKey);
 
-            // Transfer to me
-            await setDoc(tileRef, {
-                ownerId: player.id,
-                explorerName: player.explorerName,
-                color: player.color,
-                timestamp: Date.now(),
-                geohash: getGeohash(lat, lng),
-                lat,
-                lng,
+            // Using transaction to ensure counters stay in sync
+            await runTransaction(db, async (transaction) => {
+                // 1. Update Tile
+                transaction.set(tileRef, {
+                    ownerId: player.id,
+                    explorerName: player.explorerName,
+                    color: player.color,
+                    timestamp: Date.now(),
+                    geohash: getGeohash(lat, lng),
+                    lat,
+                    lng,
+                });
+
+                // 2. Update Buyer (Me) - Increment totalClaims
+                transaction.update(playerRef, {
+                    totalClaims: increment(1)
+                });
+
+                // 3. Update Seller (if exists) - Decrement totalClaims & Give Coins
+                if (tile.ownerId && tile.ownerId !== player.id) {
+                    const prevOwnerRef = doc(db, "players", tile.ownerId);
+                    transaction.update(prevOwnerRef, {
+                        balance: increment(20),
+                        totalClaims: increment(-1)
+                    });
+                }
             });
 
-            if (tile.ownerId && tile.ownerId !== player.id) {
-                const prevOwnerRef = doc(db, "players", tile.ownerId);
-                updateDoc(prevOwnerRef, { balance: increment(20) }).catch(() => { });
-            }
+            // Client-side optimistic update for player count
+            setPlayer(prev => prev ? ({
+                ...prev,
+                totalClaims: (prev.totalClaims || 0) + 1
+            }) : null);
 
         } catch (e) {
             console.error("Buy failed", e);
-            setClaims(previousClaims);
+            setClaims(previousClaims); // Revert optimistic map update
             alert("Failed to purchase square.");
         }
     };
 
 
+
+    // Sync Location for Presence
+    useEffect(() => {
+        if (!auth.currentUser || !userLat || !userLng || isMovingTooFast) return;
+
+        const now = Date.now();
+        // Throttle updates: only if moved significantly (handled by parent props)
+        // or if it's been > 30s since last update (heartbeat)
+        // For now, relies on parent passing updated userLat/userLng
+
+        const currentGridKey = getGridKey(userLat, userLng);
+        const playerRef = doc(db, "players", auth.currentUser.uid);
+
+        // Simple fire-and-forget update
+        updateDoc(playerRef, {
+            currentGridKey,
+            lastSeen: now
+        }).catch(e => console.error("Presence update failed", e));
+
+    }, [userLat, userLng, isMovingTooFast]);
+
+    const checkRankPromotion = async (gridKey: string) => {
+        if (!player || !auth.currentUser) return;
+
+        try {
+            // Count active players on this square
+            // Meaning active in last 5 minutes
+            const activeThreshold = Date.now() - (5 * 60 * 1000);
+
+            const q = query(
+                collection(db, "players"),
+                where("currentGridKey", "==", gridKey),
+                where("lastSeen", ">", activeThreshold)
+            );
+
+            const snapshot = await getDocs(q);
+            const playerCount = snapshot.size;
+
+            let newRank: PlayerState['rank'] | null = null;
+
+            if (playerCount >= 100) {
+                newRank = 'Centurion';
+            } else if (playerCount >= 10) {
+                newRank = 'Minion';
+            }
+
+            // Only update if rank improves
+            if (newRank) {
+                const currentRankValue = getRankValue(player.rank);
+                const newRankValue = getRankValue(newRank);
+
+                if (newRankValue > currentRankValue) {
+                    const playerRef = doc(db, "players", auth.currentUser.uid);
+                    await updateDoc(playerRef, { rank: newRank });
+                    // Alert user of promotion
+                    alert(`🎉 Promotion! You are now a ${newRank}!`);
+                } else {
+                    alert(`You have ${playerCount} explorers here. Gather more to rise in rank!`);
+                }
+            } else {
+                alert(`You have ${playerCount} explorers here. Gather 10 for Minion, 100 for Centurion!`);
+            }
+
+        } catch (e) {
+            console.error("Rank check failed", e);
+            alert("Failed to verify rank. Check connection.");
+        }
+    };
+
+    const getRankValue = (rank: PlayerState['rank']): number => {
+        switch (rank) {
+            case 'Centurion': return 3;
+            case 'Minion': return 2;
+            case 'Lowly Vassal': return 1;
+            default: return 0;
+        }
+    };
 
     const createPlayer = async (explorerName: string, color: string) => {
         if (!auth.currentUser) return;
@@ -258,7 +420,8 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
             explorerName,
             color,
             balance: 100,
-            hasCompletedOnboarding: true
+            hasCompletedOnboarding: true,
+            rank: 'Lowly Vassal'
         };
 
         try {
@@ -306,6 +469,17 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
         }
     };
 
+    // --- Promotion Ceremony Stubs (Impl later) ---
+    const startPromotionCeremony = async () => {
+        console.log("Promotion Ceremony not implemented yet");
+    };
+    const affirmPromotion = async (_ceremonyId: string) => {
+        console.log("Affirmation not implemented yet");
+    };
+    const completePromotion = async (_ceremonyId: string) => {
+        console.log("Completion not implemented yet");
+    };
+
     return {
         claims,
         player,
@@ -313,6 +487,11 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
         claimSquare,
         buySquare,
         createPlayer,
-        updatePlayerProfile
+        updatePlayerProfile,
+        startPromotionCeremony,
+        affirmPromotion,
+        completePromotion,
+        activeCeremony,
+        checkRankPromotion
     };
 }
