@@ -16,6 +16,14 @@ interface LocationState {
     loading: boolean;
 }
 
+declare global {
+    interface Window {
+        AndroidPolicy?: {
+            isMockLocation: () => boolean;
+        };
+    }
+}
+
 export function useGeolocation() {
     const [state, setState] = useState<LocationState>({
         lat: null,
@@ -58,6 +66,18 @@ export function useGeolocation() {
 
         const unwatch = navigator.geolocation.watchPosition(
             (position) => {
+                // SECURITY: Check for Mock Location (Android Native)
+                if (window.AndroidPolicy && window.AndroidPolicy.isMockLocation()) {
+                    setState(s => ({
+                        ...s,
+                        error: 'SECURITY VIOLATION: Mock Location Detected. Please disable fake GPS apps to play.',
+                        loading: false,
+                        lat: null,
+                        lng: null
+                    }));
+                    return;
+                }
+
                 const newLat = position.coords.latitude;
                 const newLng = position.coords.longitude;
 

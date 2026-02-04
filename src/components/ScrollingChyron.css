@@ -82,3 +82,14 @@
 .chyron-message.alert {
     color: #991b1b;
 }
+
+.chyron-message.welcome {
+    color: #4b5563;
+    /* Slate 600 - subtle */
+}
+
+.chyron-script {
+    font-family: 'Brush Script MT', 'Comic Sans MS', 'Apple Chancery', cursive;
+    font-style: italic;
+    font-size: 1.1em;
+}

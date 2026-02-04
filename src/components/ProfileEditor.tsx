@@ -1,17 +1,22 @@
 import { useState } from 'react';
 import { ColorPicker } from './ColorPicker';
 import { X, AlertTriangle } from 'lucide-react';
+import { OFFICIAL_BIRDS, OFFICIAL_FLOWERS } from '../lib/constants';
 
 interface ProfileEditorProps {
     currentName: string;
     currentColor: string;
-    onSave: (explorerName: string, color: string) => void;
+    currentFlower?: string;
+    currentBird?: string;
+    onSave: (explorerName: string, color: string, officialFlower: string, officialBird: string) => void;
     onClose: () => void;
 }
 
-export function ProfileEditor({ currentName, currentColor, onSave, onClose }: ProfileEditorProps) {
+export function ProfileEditor({ currentName, currentColor, currentFlower, currentBird, onSave, onClose }: ProfileEditorProps) {
     const [explorerName, setExplorerName] = useState(currentName);
     const [color, setColor] = useState(currentColor);
+    const [flower, setFlower] = useState(currentFlower || OFFICIAL_FLOWERS[0]);
+    const [bird, setBird] = useState(currentBird || OFFICIAL_BIRDS[0]);
     const [error, setError] = useState('');
     const [showConfirm, setShowConfirm] = useState(false);
 
@@ -36,7 +41,10 @@ export function ProfileEditor({ currentName, currentColor, onSave, onClose }: Pr
         if (!validateName(explorerName)) return;
 
         // Check if anything changed
-        if (explorerName === currentName && color === currentColor) {
+        if (explorerName === currentName &&
+            color === currentColor &&
+            flower === currentFlower &&
+            bird === currentBird) {
             onClose();
             return;
         }
@@ -45,18 +53,18 @@ export function ProfileEditor({ currentName, currentColor, onSave, onClose }: Pr
         if (color !== currentColor) {
             setShowConfirm(true);
         } else {
-            onSave(explorerName, color);
+            onSave(explorerName, color, flower, bird);
         }
     };
 
     const handleConfirm = () => {
-        onSave(explorerName, color);
+        onSave(explorerName, color, flower, bird);
         setShowConfirm(false);
     };
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-[3000] flex items-center justify-center p-4">
-            <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-6">
+            <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-6 max-h-[90vh] overflow-y-auto">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <h2 className="text-2xl font-bold text-white">Edit Profile</h2>
@@ -100,15 +108,41 @@ export function ProfileEditor({ currentName, currentColor, onSave, onClose }: Pr
                             <ColorPicker selectedColor={color} onColorChange={setColor} />
                         </div>
 
+                        {/* Official Flower */}
+                        <div className="space-y-2">
+                            <label className="text-slate-300 font-semibold">Official Flower</label>
+                            <select
+                                value={flower}
+                                onChange={(e) => setFlower(e.target.value)}
+                                className="w-full px-4 py-3 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none appearance-none"
+                            >
+                                {OFFICIAL_FLOWERS.map(f => (
+                                    <option key={f} value={f}>{f}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Official Bird */}
+                        <div className="space-y-2">
+                            <label className="text-slate-300 font-semibold">Official Bird</label>
+                            <select
+                                value={bird}
+                                onChange={(e) => setBird(e.target.value)}
+                                className="w-full px-4 py-3 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none appearance-none"
+                            >
+                                {OFFICIAL_BIRDS.map(b => (
+                                    <option key={b} value={b}>{b}</option>
+                                ))}
+                            </select>
+                        </div>
+
+
                         {/* Preview */}
-                        <div className="bg-slate-700 rounded-lg p-4 space-y-2">
-                            <p className="text-slate-300 text-sm text-center">Preview:</p>
-                            <div className="flex items-center justify-center gap-3">
-                                <div
-                                    className="w-12 h-12 rounded-lg"
-                                    style={{ backgroundColor: color }}
-                                />
-                                <span className="text-white font-semibold text-lg">{explorerName || 'Your Name'}</span>
+                        <div className="bg-slate-700 rounded-lg p-4 space-y-2 border border-slate-600">
+                            <p className="text-slate-300 text-sm text-center">Protocol Preview:</p>
+                            <div className="prose prose-invert text-sm text-center italic text-slate-300">
+                                "The <span className="text-yellow-400 not-italic">{flower}</span> blooms in <span className="text-white not-italic font-bold">{explorerName}</span>'s land,
+                                while the <span className="text-blue-400 not-italic">{bird}</span> sings."
                             </div>
                         </div>
 

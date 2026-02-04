@@ -15,6 +15,8 @@ export interface Tile {
     geohash: string;      // Geohash for spatial queries
     lat: number;          // Latitude for distance calculations
     lng: number;          // Longitude for distance calculations
+    officialFlower?: string;
+    officialBird?: string;
 }
 
 export type GameState = Record<string, Tile>;
@@ -30,6 +32,8 @@ export interface PlayerState {
     lastClaimLat?: number;      // Anti-Cheat
     lastClaimLng?: number;      // Anti-Cheat
     totalClaims?: number;       // Global scoreboard count
+    officialFlower?: string;
+    officialBird?: string;
 }
 
 export interface PromotionCeremony {
@@ -200,6 +204,8 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
             geohash: getGeohash(lat, lng),
             lat,
             lng,
+            officialFlower: player.officialFlower,
+            officialBird: player.officialBird,
         };
         setClaims(prev => ({ ...prev, [gridKey]: newTile }));
         // --- Optimistic Update End ---
@@ -301,6 +307,8 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                     geohash: getGeohash(lat, lng),
                     lat,
                     lng,
+                    officialFlower: player.officialFlower,
+                    officialBird: player.officialBird,
                 });
 
                 // 2. Update Buyer (Me) - Increment totalClaims
@@ -357,58 +365,29 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
         if (!player || !auth.currentUser) return;
 
         try {
-            // Count active players on this square
-            // Meaning active in last 5 minutes
-            const activeThreshold = Date.now() - (5 * 60 * 1000);
+            // Import dynamically or assume it's available in scope if added to imports
+            // For this snippet, I will use the modular SDK pattern
+            const { getFunctions, httpsCallable } = await import('firebase/functions');
+            const functions = getFunctions();
+            const requestPromotion = httpsCallable(functions, 'requestPromotion');
 
-            const q = query(
-                collection(db, "players"),
-                where("currentGridKey", "==", gridKey),
-                where("lastSeen", ">", activeThreshold)
-            );
+            const result = await requestPromotion({ gridKey });
+            const data = result.data as any;
 
-            const snapshot = await getDocs(q);
-            const playerCount = snapshot.size;
-
-            let newRank: PlayerState['rank'] | null = null;
-
-            if (playerCount >= 100) {
-                newRank = 'Centurion';
-            } else if (playerCount >= 10) {
-                newRank = 'Minion';
-            }
-
-            // Only update if rank improves
-            if (newRank) {
-                const currentRankValue = getRankValue(player.rank);
-                const newRankValue = getRankValue(newRank);
-
-                if (newRankValue > currentRankValue) {
-                    const playerRef = doc(db, "players", auth.currentUser.uid);
-                    await updateDoc(playerRef, { rank: newRank });
-                    // Alert user of promotion
-                    alert(`🎉 Promotion! You are now a ${newRank}!`);
-                } else {
-                    alert(`You have ${playerCount} explorers here. Gather more to rise in rank!`);
-                }
+            if (data.promoted) {
+                alert(data.message);
+                // Local state update happens automatically via onSnapshot listener
             } else {
-                alert(`You have ${playerCount} explorers here. Gather 10 for Minion, 100 for Centurion!`);
+                alert(data.message);
             }
 
-        } catch (e) {
+        } catch (e: any) {
             console.error("Rank check failed", e);
-            alert("Failed to verify rank. Check connection.");
+            alert(`Failed to verify rank: ${e.message || 'Unknown error'}`);
         }
     };
 
-    const getRankValue = (rank: PlayerState['rank']): number => {
-        switch (rank) {
-            case 'Centurion': return 3;
-            case 'Minion': return 2;
-            case 'Lowly Vassal': return 1;
-            default: return 0;
-        }
-    };
+
 
     const createPlayer = async (explorerName: string, color: string) => {
         if (!auth.currentUser) return;
@@ -421,7 +400,9 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
             color,
             balance: 100,
             hasCompletedOnboarding: true,
-            rank: 'Lowly Vassal'
+            rank: 'Lowly Vassal',
+            officialFlower: 'Dandelion',
+            officialBird: 'Pigeon'
         };
 
         try {
@@ -432,7 +413,7 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
         }
     };
 
-    const updatePlayerProfile = async (explorerName: string, color: string) => {
+    const updatePlayerProfile = async (explorerName: string, color: string, officialFlower?: string, officialBird?: string) => {
         if (!player || !auth.currentUser) return;
 
         const uid = auth.currentUser.uid;
@@ -442,7 +423,9 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
             // Update player profile
             await updateDoc(playerRef, {
                 explorerName,
-                color
+                color,
+                officialFlower: officialFlower || 'Dandelion',
+                officialBird: officialBird || 'Pigeon'
             });
 
             // Update all tiles owned by this player using indexed query
@@ -457,7 +440,9 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                 updatePromises.push(
                     updateDoc(doc(db, "tiles", tileDoc.id), {
                         explorerName,
-                        color
+                        color,
+                        officialFlower,
+                        officialBird
                     })
                 );
             });

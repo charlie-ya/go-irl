@@ -91,8 +91,10 @@ function App() {
         <ProfileEditor
           currentName={player.explorerName}
           currentColor={player.color}
-          onSave={(name, color) => {
-            updatePlayerProfile(name, color);
+          currentFlower={player.officialFlower}
+          currentBird={player.officialBird}
+          onSave={(name, color, flower, bird) => {
+            updatePlayerProfile(name, color, flower, bird);
             setShowProfileEditor(false);
           }}
           onClose={() => setShowProfileEditor(false)}
@@ -118,7 +120,12 @@ function App() {
       )}
 
       {/* Scrolling Chyron */}
-      <ScrollingChyron />
+      <ScrollingChyron
+        claims={claims}
+        userLat={location.lat}
+        userLng={location.lng}
+        myId={player?.id}
+      />
 
       {location.error && (
         <div className="absolute top-0 left-0 right-0 bg-red-500 text-white text-center p-2 z-[2000]">
