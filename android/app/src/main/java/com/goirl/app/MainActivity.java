@@ -41,5 +41,12 @@ public class MainActivity extends BridgeActivity {
             }
             return false;
         }
+
+        @android.webkit.JavascriptInterface
+        public boolean isDevModeEnabled() {
+            return android.provider.Settings.Global.getInt(
+                    getApplicationContext().getContentResolver(),
+                    android.provider.Settings.Global.DEVELOPMENT_SETTINGS_ENABLED, 0) != 0;
+        }
     }
 }

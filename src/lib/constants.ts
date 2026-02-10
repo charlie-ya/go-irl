@@ -23,3 +23,5 @@ export const OFFICIAL_BIRDS = [
     "Rubber Duck",
     "Pterodactyl"
 ];
+
+export const APP_VERSION = 'v1.1.0-fix-claim';

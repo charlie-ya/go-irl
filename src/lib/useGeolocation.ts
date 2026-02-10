@@ -20,9 +20,18 @@ declare global {
     interface Window {
         AndroidPolicy?: {
             isMockLocation: () => boolean;
+            isDevModeEnabled: () => boolean;
         };
     }
 }
+
+// Helper to check Dev Mode silently
+export const isAndroidDevModeEnabled = (): boolean => {
+    if (window.AndroidPolicy && window.AndroidPolicy.isDevModeEnabled) {
+        return window.AndroidPolicy.isDevModeEnabled();
+    }
+    return false;
+};
 
 export function useGeolocation() {
     const [state, setState] = useState<LocationState>({

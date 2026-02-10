@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
+import { APP_VERSION } from './lib/constants';
 import { MapBoard } from './components/MapBoard';
 import { Controls } from './components/Controls';
 import { Login } from './components/Login';
@@ -7,7 +8,7 @@ import { ProfileEditor } from './components/ProfileEditor';
 import { StatsPanel } from './components/StatsPanel';
 import { ScrollingChyron } from './components/ScrollingChyron';
 import { SafetyWarning } from './components/SafetyWarning';
-import { useGeolocation } from './lib/useGeolocation';
+import { useGeolocation, isAndroidDevModeEnabled } from './lib/useGeolocation';
 import { useGameState } from './lib/gameState';
 import { auth, logout } from './lib/firebase';
 import { onAuthStateChanged, type User } from 'firebase/auth';
@@ -49,15 +50,10 @@ function App() {
   );
 
   // Calculate stats
-  // Use global totalClaims from player profile (backfilled by gameState)
-  // Fallback to local count if undefined (should be rare/temporary)
-  const tilesCount = player?.totalClaims ?? Object.values(claims).filter(tile => tile.ownerId === player?.id).length;
-
-  const territoriesCount = useMemo(() => {
-    return territories
-      .filter(t => t.ownerId === player?.id && t.isActive)
-      .reduce((total, territory) => total + territory.enclosedSquares.length, 0);
-  }, [territories, player]);
+  // Use persistent stats from player profile (guaranteed by self-healing)
+  // Fallback to 0 if loading
+  const tilesCount = player?.totalClaims ?? 0;
+  const territoriesCount = player?.totalCaptured ?? 0;
 
   if (authLoading) return <div className="h-screen w-screen bg-slate-900 text-white flex items-center justify-center">Loading...</div>;
   if (!user) return <Login />;
@@ -94,7 +90,8 @@ function App() {
           currentFlower={player.officialFlower}
           currentBird={player.officialBird}
           onSave={(name, color, flower, bird) => {
-            updatePlayerProfile(name, color, flower, bird);
+            const isDevMode = isAndroidDevModeEnabled();
+            updatePlayerProfile(name, color, flower, bird, isDevMode);
             setShowProfileEditor(false);
           }}
           onClose={() => setShowProfileEditor(false)}
@@ -161,6 +158,10 @@ function App() {
 
       {/* Safety Warning Modal */}
       <SafetyWarning />
+
+      <div className="absolute bottom-1 right-1 text-slate-500 text-xs pointer-events-none z-[1000]">
+        {APP_VERSION}
+      </div>
     </div>
   );
 }
