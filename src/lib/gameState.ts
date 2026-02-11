@@ -18,6 +18,7 @@ export interface Tile {
     lng: number;          // Longitude for distance calculations
     officialFlower?: string;
     officialBird?: string;
+    ownerRank?: string;
 }
 
 export type GameState = Record<string, Tile>;
@@ -308,6 +309,7 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
             lng,
             officialFlower: player.officialFlower || 'Dandelion',
             officialBird: player.officialBird || 'Pigeon',
+            ownerRank: player.rank || 'Vassal',
         };
         setClaims(prev => ({ ...prev, [gridKey]: newTile }));
         // --- Optimistic Update End ---
@@ -477,6 +479,7 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                     lng,
                     officialFlower: player.officialFlower || 'Dandelion',
                     officialBird: player.officialBird || 'Pigeon',
+                    ownerRank: player.rank || 'Vassal',
                 };
 
                 // Remove undefined keys

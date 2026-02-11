@@ -113,6 +113,7 @@ function App() {
           tilesCount={tilesCount}
           territoriesCount={territoriesCount}
           rank={player.rank}
+          explorerName={player.explorerName}
         />
       )}
 

@@ -1,27 +1,32 @@
 /* Blur zone behind chyron */
 .chyron-blur-zone {
     position: absolute;
-    bottom: 30px;
+    bottom: 50px;
     left: 0;
     right: 0;
     height: 56px;
     backdrop-filter: blur(4px);
     z-index: 999;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.4), transparent);
+    pointer-events: none;
 }
 
-/* Scrolling Chyron */
+/* Scrolling Chyron Container */
 .chyron-container {
     position: absolute;
-    bottom: 40px;
+    bottom: 60px;
     left: 0;
     right: 0;
     height: 36px;
-    background: rgba(255, 255, 255, 0.3);
-    backdrop-filter: blur(8px);
-    border-top: 2px solid rgba(59, 130, 246, 0.5);
-    border-bottom: 2px solid rgba(59, 130, 246, 0.5);
+    background: rgba(15, 23, 42, 0.6);
+    /* Darker background for contrast */
+    border-top: 1px solid rgba(59, 130, 246, 0.3);
+    border-bottom: 1px solid rgba(59, 130, 246, 0.3);
     overflow: hidden;
     z-index: 1000;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
 }
 
 .chyron-wrapper {
@@ -29,7 +34,8 @@
     align-items: center;
     height: 100%;
     white-space: nowrap;
-    animation: scroll-left 15s linear infinite;
+    /* Adjust duration dynamically in valid style if needed, but 30s is a good base for reading speed */
+    animation: scroll-left 30s linear infinite;
 }
 
 @keyframes scroll-left {
@@ -45,17 +51,18 @@
 .chyron-content {
     display: inline-flex;
     align-items: center;
-    padding: 0 20px;
-    color: #1e293b;
-    font-size: 14px;
-    font-weight: 600;
+    padding-right: 50px;
+    /* Spacing between loop iterations */
 }
 
-.chyron-separator {
-    display: inline-block;
-    margin: 0 16px;
-    color: rgba(37, 99, 235, 0.8);
-    font-size: 16px;
+.chyron-item {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 40px;
+    /* Space between messages */
+    color: #e2e8f0;
+    font-size: 14px;
+    font-weight: 500;
 }
 
 .chyron-icon {
@@ -63,33 +70,20 @@
     font-size: 16px;
 }
 
-.chyron-message {
-    display: inline-block;
-}
-
-.chyron-message.tutorial {
-    color: #1e40af;
-}
-
-.chyron-message.user {
-    color: #b45309;
-}
-
-.chyron-message.system {
-    color: #065f46;
-}
-
-.chyron-message.alert {
-    color: #991b1b;
-}
-
-.chyron-message.welcome {
-    color: #4b5563;
-    /* Slate 600 - subtle */
-}
-
-.chyron-script {
-    font-family: 'Brush Script MT', 'Comic Sans MS', 'Apple Chancery', cursive;
+.chyron-text.welcome {
+    color: #cbd5e1;
     font-style: italic;
-    font-size: 1.1em;
+    font-weight: 400;
+}
+
+.chyron-text.ad {
+    color: #fbbf24;
+}
+
+.chyron-text.tutorial {
+    color: #60a5fa;
+}
+
+.chyron-separator {
+    color: checksum;
 }
