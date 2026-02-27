@@ -1,4 +1,5 @@
 import { encode as geohashEncode, decode as geohashDecode, neighbors as getGeohashNeighbors } from 'ngeohash';
+import { fromGridInt } from './gridSystem';
 
 // Configuration constants
 export const TILE_LOAD_RADIUS_METERS = 200;  // Fixed radius around user
@@ -56,14 +57,16 @@ export function decodeGeohash(geohash: string): { lat: number; lng: number } {
 /**
  * Filter tiles by distance from a point
  */
-export function filterTilesByRadius<T extends { lat: number; lng: number }>(
+export function filterTilesByRadius<T extends { latInt: number; lngInt: number }>(
     tiles: T[],
     centerLat: number,
     centerLng: number,
     radiusMeters: number = TILE_LOAD_RADIUS_METERS
 ): T[] {
     return tiles.filter(tile => {
-        const distance = calculateDistance(centerLat, centerLng, tile.lat, tile.lng);
+        const tileLat = fromGridInt(tile.latInt);
+        const tileLng = fromGridInt(tile.lngInt);
+        const distance = calculateDistance(centerLat, centerLng, tileLat, tileLng);
         return distance <= radiusMeters;
     });
 }

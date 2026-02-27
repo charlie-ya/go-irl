@@ -7,18 +7,21 @@ interface ColorPickerProps {
 }
 
 const PRESET_COLORS = [
-    '#FF6B6B', // Vibrant Red
-    '#4ECDC4', // Turquoise
-    '#45B7D1', // Sky Blue
-    '#FFA07A', // Light Salmon
-    '#98D8C8', // Mint
-    '#F7DC6F', // Yellow
-    '#BB8FCE', // Purple
-    '#85C1E2', // Light Blue
-    '#F8B739', // Orange
-    '#52B788', // Green
-    '#E63946', // Dark Red
-    '#457B9D', // Steel Blue
+    '#FF1744', // Scarlet
+    '#FF5722', // Vermillion
+    '#FF9100', // Tangerine
+    '#76FF03', // Chartreuse
+    '#00E676', // Neon Green
+    '#1DE9B6', // Mint
+    '#00E5FF', // Cyan
+    '#00A9E0', // Cerulean
+    '#2979FF', // Electric Blue
+    '#304FFE', // Cobalt
+    '#6200EA', // Royal
+    '#AA00FF', // Purple
+    '#D500F9', // Magenta
+    '#C51162', // Rose
+    '#F50057', // Crimson
 ];
 
 export function ColorPicker({ selectedColor, onColorChange }: ColorPickerProps) {
@@ -40,7 +43,7 @@ export function ColorPicker({ selectedColor, onColorChange }: ColorPickerProps) 
 
     return (
         <div className="space-y-4">
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-5 gap-3">
                 {PRESET_COLORS.map((color) => (
                     <button
                         key={color}

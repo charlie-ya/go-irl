@@ -1,4 +1,5 @@
-import { Polygon } from 'react-leaflet';
+import { useMemo } from 'react';
+import { Source, Layer } from 'react-map-gl/mapbox';
 import { getGridSquareBounds } from '../lib/gridSystem';
 import type { Territory } from '../lib/gameState';
 
@@ -7,44 +8,62 @@ interface TerritoryRendererProps {
 }
 
 export function TerritoryRenderer({ territories }: TerritoryRendererProps) {
-    // Track which squares have been rendered to avoid duplicate overlays
-    const renderedSquares = new Set<string>();
-    const squaresToRender: Array<{ gridKey: string; color: string; territoryId: string }> = [];
+    const geoJSON = useMemo(() => {
+        const features: any[] = [];
+        const renderedSquares = new Set<string>();
 
-    // Collect all unique enclosed squares
-    territories.forEach((territory) => {
-        if (!territory.isActive) return;
+        territories.forEach((territory) => {
+            if (!territory.isActive) return;
 
-        territory.enclosedSquares.forEach((gridKey) => {
-            if (!renderedSquares.has(gridKey)) {
-                renderedSquares.add(gridKey);
-                squaresToRender.push({
-                    gridKey,
-                    color: territory.color,
-                    territoryId: territory.id
-                });
-            }
+            territory.enclosedSquares.forEach((gridKey) => {
+                if (!renderedSquares.has(gridKey)) {
+                    renderedSquares.add(gridKey);
+
+                    const bounds = getGridSquareBounds(gridKey);
+                    // Convert [[lat, lng], ...] to [[lng, lat], ...] and close loop
+                    const coords = bounds.map(coord => [coord[1], coord[0]]);
+                    coords.push(coords[0]);
+
+                    features.push({
+                        type: 'Feature',
+                        geometry: {
+                            type: 'Polygon',
+                            coordinates: [coords]
+                        },
+                        properties: {
+                            territoryId: territory.id,
+                            color: territory.color
+                        }
+                    });
+                }
+            });
         });
-    });
+
+        return {
+            type: 'FeatureCollection',
+            features
+        };
+    }, [territories]);
 
     return (
-        <>
-            {squaresToRender.map(({ gridKey, color, territoryId }) => {
-                const bounds = getGridSquareBounds(gridKey);
-                return (
-                    <Polygon
-                        key={`territory-${territoryId}-${gridKey}`}
-                        positions={bounds}
-                        pathOptions={{
-                            color: color,
-                            fillColor: color,
-                            fillOpacity: 0.25, // More transparent than regular squares
-                            weight: 0.5,
-                            opacity: 0.5
-                        }}
-                    />
-                );
-            })}
-        </>
+        <Source id="territories-source" type="geojson" data={geoJSON as any}>
+            <Layer
+                id="territory-fill"
+                type="fill"
+                paint={{
+                    'fill-color': ['get', 'color'],
+                    'fill-opacity': 0.25
+                }}
+            />
+            <Layer
+                id="territory-outline" // Optional: highlight territory borders?
+                type="line"
+                paint={{
+                    'line-color': ['get', 'color'],
+                    'line-width': 1,
+                    'line-opacity': 0.5
+                }}
+            />
+        </Source>
     );
 }

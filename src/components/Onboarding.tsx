@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ColorPicker } from './ColorPicker';
-import { MapPin, User } from 'lucide-react';
+import { MapPin, User, ChevronDown } from 'lucide-react';
+import { getReferralCodeFromURL } from '../lib/referralService';
 
 interface OnboardingProps {
-    onComplete: (explorerName: string, color: string) => void;
+    onComplete: (explorerName: string, color: string, referralCode?: string) => void;
 }
 
 export function Onboarding({ onComplete }: OnboardingProps) {
@@ -11,6 +12,17 @@ export function Onboarding({ onComplete }: OnboardingProps) {
     const [explorerName, setExplorerName] = useState('');
     const [color, setColor] = useState('#FF6B6B');
     const [error, setError] = useState('');
+    const [referralCode, setReferralCode] = useState('');
+    const [showReferralInput, setShowReferralInput] = useState(false);
+
+    // Pre-fill referral code from URL on mount
+    useEffect(() => {
+        const urlCode = getReferralCodeFromURL();
+        if (urlCode) {
+            setReferralCode(urlCode);
+            setShowReferralInput(true);
+        }
+    }, []);
 
     const validateName = (name: string): boolean => {
         if (name.length < 3) {
@@ -37,7 +49,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                 setStep(3);
             }
         } else if (step === 3) {
-            onComplete(explorerName, color);
+            onComplete(explorerName, color, referralCode || undefined);
         }
     };
 
@@ -82,6 +94,10 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                                 <span className="text-blue-400 mt-1">•</span>
                                 <span>Your identity stays private - only your explorer name shows</span>
                             </li>
+                            <li className="flex items-start gap-2">
+                                <span className="text-blue-400 mt-1">•</span>
+                                <span>Capture territory to earn bonus coins</span>
+                            </li>
                         </ul>
                     </div>
                 )}
@@ -117,6 +133,28 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                                 )}
                                 <span className="text-slate-400">{explorerName.length}/20</span>
                             </div>
+                        </div>
+
+                        {/* Referral Code */}
+                        <div className="border-t border-slate-600 pt-3">
+                            <button
+                                type="button"
+                                onClick={() => setShowReferralInput(!showReferralInput)}
+                                className="flex items-center gap-2 text-sm text-slate-400 hover:text-slate-300 transition-colors w-full"
+                            >
+                                <ChevronDown className={`w-4 h-4 transition-transform ${showReferralInput ? 'rotate-180' : ''}`} />
+                                Invited by a friend?
+                            </button>
+                            {showReferralInput && (
+                                <input
+                                    type="text"
+                                    value={referralCode}
+                                    onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                                    placeholder="Enter friend code"
+                                    maxLength={6}
+                                    className="mt-2 w-full px-4 py-2 bg-slate-700 text-white text-sm rounded-lg border border-slate-600 focus:border-yellow-500 focus:outline-none transition-colors uppercase tracking-widest font-mono"
+                                />
+                            )}
                         </div>
                     </div>
                 )}

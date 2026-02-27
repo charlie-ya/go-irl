@@ -1,12 +1,17 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { db, auth } from './firebase';
-import { collection, doc, onSnapshot, setDoc, updateDoc, increment, getDocs, deleteDoc, query, where, getCountFromServer, runTransaction } from 'firebase/firestore';
+import { collection, doc, onSnapshot, setDoc, updateDoc, increment, getDocs, deleteDoc, query, where, getCountFromServer, runTransaction, writeBatch } from 'firebase/firestore';
 
 
 import { findEnclosedAreas, type Territory } from './captureLogic';
+import { calculateCaptureBonus } from './captureBonus';
 import { getGeohash, getGeohashWithNeighbors, calculateDistance, TILE_LOAD_RADIUS_METERS, LOCATION_UPDATE_THRESHOLD } from './geohashUtils';
-import { parseGridKey, getGridKey } from './gridSystem';
+import { parseGridKey, getGridKey, getGridFloats, fromGridInt } from './gridSystem';
 import { TileStorage } from './tileStorage';
+import { applyReferralCode, checkAndAwardReferralMilestones } from './referralService';
+
+import { isPointInExcludedZone, type ExclusionZone } from './exclusionZones';
+
 
 export interface Tile {
     ownerId: string;
@@ -14,11 +19,12 @@ export interface Tile {
     color: string;
     timestamp: number;
     geohash: string;      // Geohash for spatial queries
-    lat: number;          // Latitude for distance calculations
-    lng: number;          // Longitude for distance calculations
+    latInt: number;       // Integer latitude (matches grid key)
+    lngInt: number;       // Integer longitude (matches grid key)
     officialFlower?: string;
     officialBird?: string;
     ownerRank?: string;
+    capturedBy?: string;    // Player ID who captured this tile via enclosure
 }
 
 export type GameState = Record<string, Tile>;
@@ -38,6 +44,7 @@ export interface PlayerState {
     officialFlower?: string;
     officialBird?: string;
     isDevMode?: boolean;
+    referralCode?: string;
 }
 
 export interface PromotionCeremony {
@@ -48,14 +55,25 @@ export interface PromotionCeremony {
     affirmations: string[]; // List of userIds who affirmed
 }
 
+export interface Offer {
+    id: string; // auto-generated
+    tileKey: string;
+    sellerId: string; // current owner
+    buyerId: string; // person making offer
+    amount: number; // offer amount in coins
+    status: 'pending' | 'accepted' | 'rejected';
+    createdAt: number;
+}
+
 export { type Territory };
 
-export function useGameState(userLat?: number, userLng?: number, isMovingTooFast?: boolean) {
+export function useGameState(userLat?: number, userLng?: number, isMovingTooFast?: boolean, activeZones: ExclusionZone[] = []) {
     const [claims, setClaims] = useState<GameState>({});
     const [player, setPlayer] = useState<PlayerState | null>(null);
     const [territories, setTerritories] = useState<Territory[]>([]);
     const [activeCeremony] = useState<PromotionCeremony | null>(null);
     const lastQueryLocation = useRef<{ lat: number; lng: number } | null>(null);
+    const hasVerifiedStats = useRef<boolean>(false);
 
     // Listen to Nearby Tiles (200m radius)
     useEffect(() => {
@@ -97,8 +115,10 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                 const newClaims: GameState = {};
                 snapshot.forEach(doc => {
                     const tile = doc.data() as Tile;
-                    // Filter to exact radius
-                    const distance = calculateDistance(userLat, userLng, tile.lat, tile.lng);
+                    // Filter to exact radius - convert integer coords to float
+                    const tileLat = fromGridInt(tile.latInt);
+                    const tileLng = fromGridInt(tile.lngInt);
+                    const distance = calculateDistance(userLat, userLng, tileLat, tileLng);
                     if (distance <= TILE_LOAD_RADIUS_METERS) {
                         newClaims[doc.id] = tile;
                     }
@@ -141,7 +161,6 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                         console.log(`[DEBUG] VerifyStats: User ${uid} has ${actualClaims} tiles (Actual) vs ${data.totalClaims} (Profile)`);
 
                         if (data.totalClaims !== actualClaims) {
-                            alert(`[FIXING STATS] Found ${actualClaims} tiles but profile says ${data.totalClaims}. Updating...`);
                             console.log(`Fixing totalClaims: ${data.totalClaims} -> ${actualClaims}`);
                             updates.totalClaims = actualClaims;
                         }
@@ -152,16 +171,15 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                         // For now, reading all captured docs for a user is okay (usually < 100 docs).
                         const qCaptured = query(collection(db, "captured"), where("ownerId", "==", uid));
                         const snapshotCaptured = await getDocs(qCaptured);
-
-                        let actualCapturedArea = 0;
-                        snapshotCaptured.forEach(doc => {
-                            const t = doc.data() as Territory;
-                            actualCapturedArea += (t.perimeterSquares?.length || 0) + (t.enclosedSquares?.length || 0);
+                        let actualCapturedTiles = 0;
+                        snapshotCaptured.forEach(capturedDoc => {
+                            const capturedData = capturedDoc.data();
+                            actualCapturedTiles += (capturedData.enclosedSquares?.length || 0);
                         });
 
-                        if (data.totalCaptured !== actualCapturedArea) {
-                            console.log(`Fixing totalCaptured: ${data.totalCaptured} -> ${actualCapturedArea}`);
-                            updates.totalCaptured = actualCapturedArea;
+                        if (data.totalCaptured !== actualCapturedTiles) {
+                            console.log(`Fixing totalCaptured: ${data.totalCaptured} -> ${actualCapturedTiles}`);
+                            updates.totalCaptured = actualCapturedTiles;
                         }
 
                         if (Object.keys(updates).length > 0) {
@@ -172,8 +190,12 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                     }
                 };
 
-                // Run verification (debounced or strictly once per mounting isn't needed as effect runs on auth change)
-                verifyStats();
+                // Run verification ONLY ONCE per mount to avoid infinite loop
+                // (updateDoc triggers onSnapshot, which would call verifyStats again)
+                if (!hasVerifiedStats.current) {
+                    hasVerifiedStats.current = true;
+                    verifyStats();
+                }
 
                 // Self-Healing: Backfill missing cosmetics & rank (Fixes "Undefined" error on legacy apps)
                 if (!data.officialFlower || !data.officialBird || !data.rank) {
@@ -193,7 +215,10 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                 setPlayer(null);
             }
         });
-        return () => unsub();
+        return () => {
+            hasVerifiedStats.current = false; // Reset for next mount
+            unsub();
+        };
     }, [auth.currentUser]);
 
     // Initialize & Sync Tile Storage
@@ -228,9 +253,16 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
         syncLocalTiles();
     }, [auth.currentUser, player?.totalClaims]); // Re-run if player stats change (e.g. bought/sold on another device)
 
-    // Listen to Captured Territories
+    // Listen to Captured Territories (Only for current user)
     useEffect(() => {
-        const unsub = onSnapshot(collection(db, "captured"), (snapshot) => {
+        if (!auth.currentUser) return;
+
+        const q = query(
+            collection(db, "captured"),
+            where("ownerId", "==", auth.currentUser.uid)
+        );
+
+        const unsub = onSnapshot(q, (snapshot) => {
             const newTerritories: Territory[] = [];
             snapshot.forEach(doc => {
                 const data = doc.data();
@@ -242,24 +274,57 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
             setTerritories(newTerritories);
         });
         return () => unsub();
-    }, []);
+    }, [auth.currentUser]);
 
-    const claimSquare = async (gridKey: string) => {
-        if (!player || !auth.currentUser) return;
+    // Derive capturedBy from territory data (client-side only, no Firestore writes)
+    const enrichedClaims = useMemo(() => {
+        const result: GameState = { ...claims };
+        for (const territory of territories) {
+            if (!territory.isActive) continue;
+            for (const enclosedKey of territory.enclosedSquares) {
+                if (result[enclosedKey]) {
+                    // Tile exists — add capturedBy
+                    result[enclosedKey] = { ...result[enclosedKey], capturedBy: territory.ownerId };
+                } else {
+                    // Enclosed tile with no claim doc — create a virtual entry
+                    result[enclosedKey] = {
+                        ownerId: '',
+                        explorerName: '',
+                        color: '',
+                        timestamp: 0,
+                        geohash: '',
+                        latInt: 0,
+                        lngInt: 0,
+                        capturedBy: territory.ownerId,
+                    };
+                }
+            }
+        }
+        return result;
+    }, [claims, territories]);
+
+    const claimSquare = async (gridKey: string): Promise<number> => {
+        if (!player || !auth.currentUser) return 0;
         if (player.balance < 1) {
             alert("Not enough coins!");
-            return;
+            return 0;
         }
 
         // Check if already owned by someone else
         if (claims[gridKey] && claims[gridKey].ownerId !== player.id) {
             alert(`This square is already owned by ${claims[gridKey].explorerName}!`);
-            return;
+            return 0;
+        }
+
+        // Check if tile is captured by another player (permanent capture protection)
+        if (enrichedClaims[gridKey]?.capturedBy && enrichedClaims[gridKey].capturedBy !== player.id) {
+            alert(`This area is captured territory belonging to another explorer!`);
+            return 0;
         }
 
         // --- Anti-Cheat: Teleportation Guard ---
         // Calculate distance/speed from last claim
-        const { lat, lng } = parseGridKey(gridKey); // Parse early for check
+        const { lat, lng } = getGridFloats(gridKey); // Get float coords for distance calc
         if (player.lastClaimTimestamp && player.lastClaimLat && player.lastClaimLng) {
             const distance = calculateDistance(player.lastClaimLat, player.lastClaimLng, lat, lng);
             const timeDiff = (Date.now() - player.lastClaimTimestamp) / 1000; // seconds
@@ -278,7 +343,7 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                     if (distance < 1000) {
                         // Strict enforcement for short distance (Walking/Running > 20km/h)
                         alert(`🚫 ${limitType} speed exceeded! (${Math.round(speedKmh)} km/h). Slow down to claim.`);
-                        return;
+                        return 0;
                     } else {
                         // DISABLED FOR TESTING: Long distance travel limit (200km/h)
                         console.log(`[TESTING] Travel speed limit bypassed: ${Math.round(speedKmh)} km/h (Limit: ${maxSpeed})`);
@@ -299,14 +364,18 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
         }) : null);
 
         // 2. Optimistic Tile Claim
+        // Store INTEGER coordinates that exactly match the gridKey
+        const { latInt, lngInt } = parseGridKey(gridKey);
+        const { lat: floatLat, lng: floatLng } = getGridFloats(gridKey); // For geohash only
+
         const newTile: Tile = {
             ownerId: player.id,
-            explorerName: player.explorerName || 'Anonymous', // Fallback
-            color: player.color || '#808080',                // Fallback
+            explorerName: player.explorerName || 'Anonymous',
+            color: player.color || '#808080',
             timestamp: Date.now(),
-            geohash: getGeohash(lat, lng),
-            lat,
-            lng,
+            geohash: getGeohash(floatLat, floatLng),
+            latInt,  // Integer coordinates match grid key exactly
+            lngInt,
             officialFlower: player.officialFlower || 'Dandelion',
             officialBird: player.officialBird || 'Pigeon',
             ownerRank: player.rank || 'Vassal',
@@ -320,21 +389,7 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
             const playerRef = doc(db, "players", auth.currentUser.uid);
 
             // Client-side territory detection using OPTIMISTIC claims
-            // This predicts what territories WILL exist after this transaction
-
-            // FLAW FIX: 'claims' only contains tiles within 200m. 
-            // We MUST fetch ALL tiles owned by the player to detect territories properly.
             // OPTIMIZATION: Use Local TileStorage instead of Firestore Read
-
-            // Old Firestore way:
-            // const userTilesQuery = query(collection(db, "tiles"), where("ownerId", "==", player.id));
-            // const userTilesSnapshot = await getDocs(userTilesQuery);
-            // const allUserClaims: GameState = {};
-            // userTilesSnapshot.forEach(doc => {
-            //     allUserClaims[doc.id] = doc.data() as Tile;
-            // });
-
-            // New Local Cache way:
             const allUserClaims = await TileStorage.getAllMyTiles();
 
             // Add optimistic new tile
@@ -343,10 +398,30 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
             const enclosedAreas = findEnclosedAreas(allUserClaims, player.id);
             console.log(`[DEBUG] Territory Calc: Found ${enclosedAreas.length} enclosed areas (Scanned ${Object.keys(allUserClaims).length} tiles).`);
 
-            // Calculate Territory Changes (Optimistic & for Transaction)
-            const newTerritoryCount = enclosedAreas.length;
-            const previousTerritoryCount = territories.length;
-            const capturedDiff = newTerritoryCount - previousTerritoryCount;
+            // --- PERMANENT CAPTURE: Diff against existing territories ---
+            // Build fingerprints of existing territories (from React state / Firestore listener)
+            const existingSignatures = new Set<string>();
+            for (const t of territories) {
+                const sig = [...t.enclosedSquares].sort().join('|');
+                existingSignatures.add(sig);
+            }
+
+            // Filter to only genuinely NEW territories
+            const newTerritories = enclosedAreas.filter(area => {
+                const sig = [...area.enclosedSquares].sort().join('|');
+                return !existingSignatures.has(sig);
+            });
+
+            const newCapturedTileCount = newTerritories.reduce(
+                (sum, area) => sum + area.enclosedSquares.length, 0
+            );
+
+            // --- CAPTURE BONUS: ΔX + ΔY formula ---
+            const captureBonus = newTerritories.reduce(
+                (sum, area) => sum + calculateCaptureBonus(area.enclosedSquares), 0
+            );
+
+            console.log(`[DEBUG] Permanent Capture: ${newTerritories.length} new territories (${newCapturedTileCount} new tiles, +${captureBonus} bonus coins). ${territories.length} existing territories unchanged.`);
 
             await runTransaction(db, async (transaction) => {
                 // 1. Safety Check: Ensure tile is still unclaimed
@@ -355,52 +430,51 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                     throw new Error("Tile already claimed by another explorer!");
                 }
 
-                // 2. Create/Update Tile
-                // Ensure no undefined values are passed to Firestore
+                // 1b. Safety Check: Ensure tile is not in an EXCLUDED ZONE
+                const excludedZone = isPointInExcludedZone(lat, lng, activeZones);
+                if (excludedZone) {
+                    if (excludedZone.category === 'sacred') {
+                        throw new Error(`Sacred Ground: ${excludedZone.name} cannot be claimed.`);
+                    } else if (excludedZone.category === 'sovereign') {
+                        throw new Error(`Restricted Zone: ${excludedZone.name} is off-limits.`);
+                    } else if (excludedZone.category === 'natural') {
+                        throw new Error(`Protected Nature Reserve: ${excludedZone.name}.`);
+                    } else {
+                        throw new Error(`Restricted Area: ${excludedZone.name} is reserved.`);
+                    }
+                }
+
+                // 2. Create Tile
                 const safeTile = {
                     ...newTile,
                     officialFlower: newTile.officialFlower || 'Dandelion',
                     officialBird: newTile.officialBird || 'Pigeon',
-                    capturedAt: null // Explicit null instead of undefined if needed, though Tile interface doesn't have it.
                 };
 
-                // Remove undefined keys just in case (e.g. if interface changes)
+                // Remove undefined keys
                 Object.keys(safeTile).forEach(key => (safeTile as any)[key] === undefined && delete (safeTile as any)[key]);
 
                 transaction.set(tileRef, safeTile);
 
-                // 3. Update Player (Balance, Anti-Cheat, Stats)
+                // 3. Update Player (Balance, Anti-Cheat, Stats, Capture Bonus)
                 const playerUpdates: any = {
-                    balance: increment(-1),
+                    balance: increment(-1 + captureBonus),
                     lastClaimTimestamp: Date.now(),
                     lastClaimLat: lat,
                     lastClaimLng: lng,
                     totalClaims: increment(1)
                 };
 
-                if (capturedDiff !== 0) {
-                    playerUpdates.totalCaptured = increment(capturedDiff);
+                // Only increment totalCaptured for genuinely new captures
+                if (newCapturedTileCount > 0) {
+                    playerUpdates.totalCaptured = increment(newCapturedTileCount);
                 }
 
                 transaction.update(playerRef, playerUpdates);
             });
 
-
-            // Post-Transaction Territory Sync (Document Management)
-            // Ideally part of transaction, but unmanaged deletions via query are hard inside transactions.
-            // We rely on the atomic STATS update above for the scoreboard.
-
-            // Delete old territories
-            const oldTerritoriesQuery = query(
-                collection(db, "captured"),
-                where("ownerId", "==", player.id)
-            );
-            const oldTerritoriesSnapshot = await getDocs(oldTerritoriesQuery);
-            const deletePromises = oldTerritoriesSnapshot.docs.map(doc => deleteDoc(doc.ref));
-            await Promise.all(deletePromises);
-
-            // Save new territories
-            for (const area of enclosedAreas) {
+            // Post-transaction: Write ONLY new territories (no delete step!)
+            for (const area of newTerritories) {
                 const territoryId = `${player.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
                 const territory: Territory = {
                     id: territoryId,
@@ -415,19 +489,25 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                 await setDoc(doc(db, "captured", territoryId), territory);
             }
 
-            // 4. Update Local TileStorage
+            // Update Local TileStorage
             await TileStorage.addTile(gridKey, newTile);
-
 
             // UPDATE LOCALLY for next check
             setPlayer(prev => prev ? ({
                 ...prev,
+                balance: prev.balance + captureBonus,  // Add capture bonus to optimistic balance
                 lastClaimTimestamp: Date.now(),
                 lastClaimLat: lat,
                 lastClaimLng: lng,
-                // Stats updated optimistically already, but sync captured if diff
-                totalCaptured: (prev.totalCaptured || 0) + capturedDiff
+                totalCaptured: (prev.totalCaptured || 0) + newCapturedTileCount
             }) : null);
+
+            // Check referral milestones (fire-and-forget)
+            checkAndAwardReferralMilestones(player.id).catch(e =>
+                console.error('[Referral] Milestone check failed:', e)
+            );
+
+            return captureBonus;
 
         } catch (e: any) {
             console.error("Transaction failed, reverting state", e);
@@ -438,6 +518,7 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
             // Show actual error message if available
             const errorMessage = e?.message || "Unknown error (check connection?)";
             alert(`Unable to Claim Square: ${errorMessage}`);
+            return 0;
         }
     };
 
@@ -464,7 +545,7 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
         try {
             const tileRef = doc(db, "tiles", gridKey);
             const playerRef = doc(db, "players", player.id);
-            const { lat, lng } = parseGridKey(gridKey);
+            const { lat, lng } = getGridFloats(gridKey); // Get floats for lastClaimLat/Lng
 
             // Using transaction to ensure counters stay in sync
             await runTransaction(db, async (transaction) => {
@@ -576,7 +657,7 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
 
 
 
-    const createPlayer = async (explorerName: string, color: string) => {
+    const createPlayer = async (explorerName: string, color: string, referralCode?: string) => {
         if (!auth.currentUser) return;
         const uid = auth.currentUser.uid;
         const playerRef = doc(db, "players", uid);
@@ -591,11 +672,19 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
             officialFlower: 'Dandelion',
             officialBird: 'Pigeon',
             totalClaims: 0,
-            totalCaptured: 0
+            totalCaptured: 0,
+            ...(referralCode ? { referralCode } : {})
         };
 
         try {
             await setDoc(playerRef, newPlayer);
+
+            // Apply referral code (fire-and-forget, non-blocking)
+            if (referralCode) {
+                applyReferralCode(referralCode, uid).catch(e =>
+                    console.error('[Referral] Failed to apply code during signup:', e)
+                );
+            }
         } catch (e) {
             console.error("Failed to create player", e);
             alert("Failed to create profile. Please try again.");
@@ -604,7 +693,6 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
 
     const updatePlayerProfile = async (
         explorerName: string,
-        color: string,
         officialFlower?: string,
         officialBird?: string,
         isDevMode?: boolean
@@ -615,39 +703,169 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
         const playerRef = doc(db, "players", uid);
 
         try {
-            // Update player profile
+            // Update player profile only (color is immutable after creation)
             await updateDoc(playerRef, {
                 explorerName,
-                color,
                 officialFlower: officialFlower || 'Dandelion',
                 officialBird: officialBird || 'Pigeon',
                 isDevMode: isDevMode || false
             });
-
-            // Update all tiles owned by this player using indexed query
-            const userTilesQuery = query(
-                collection(db, "tiles"),
-                where("ownerId", "==", uid)
-            );
-            const tilesSnapshot = await getDocs(userTilesQuery);
-            const updatePromises: Promise<void>[] = [];
-
-            tilesSnapshot.forEach((tileDoc) => {
-                updatePromises.push(
-                    updateDoc(doc(db, "tiles", tileDoc.id), {
-                        explorerName,
-                        color,
-                        officialFlower,
-                        officialBird,
-                        isDevMode
-                    })
-                );
-            });
-
-            await Promise.all(updatePromises);
         } catch (e) {
             console.error("Failed to update profile", e);
             alert("Failed to update profile. Please try again.");
+        }
+    };
+
+    // --- Make Offer Function ---
+    const makeOffer = async (tileKey: string, amount: number) => {
+        const user = auth.currentUser;
+        if (!user || !player) return;
+
+        const tile = claims[tileKey];
+        if (!tile) {
+            alert("This square is not claimed");
+            return;
+        }
+
+        if (tile.ownerId === user.uid) {
+            alert("You already own this square");
+            return;
+        }
+
+        if (amount > player.balance) {
+            alert(`You only have ${player.balance} coins`);
+            return;
+        }
+
+        if (amount < 2) {
+            alert("Minimum offer is 2 coins");
+            return;
+        }
+
+        try {
+            const offerRef = doc(collection(db, "offers"));
+            const offer: Offer = {
+                id: offerRef.id,
+                tileKey,
+                sellerId: tile.ownerId,
+                buyerId: user.uid,
+                amount,
+                status: 'pending',
+                createdAt: Date.now()
+            };
+
+            await setDoc(offerRef, offer);
+            alert(`Offer of ${amount} coins sent to ${tile.explorerName}! 🤝`);
+        } catch (e: any) {
+            console.error("Failed to make offer", e);
+            alert(`Failed to make offer: ${e.message}`);
+        }
+    };
+
+    // --- Accept Offer ---
+    const acceptOffer = async (offerId: string) => {
+        const user = auth.currentUser;
+        if (!user || !player) return;
+
+        try {
+            let acceptedAmount = 0;
+            await runTransaction(db, async (transaction) => {
+                // 1. Read the offer
+                const offerRef = doc(db, 'offers', offerId);
+                const offerSnap = await transaction.get(offerRef);
+                if (!offerSnap.exists()) throw new Error('Offer not found');
+                const offer = offerSnap.data() as Offer;
+
+                if (offer.status !== 'pending') throw new Error('Offer is no longer pending');
+                if (offer.sellerId !== user.uid) throw new Error('You are not the seller');
+                acceptedAmount = offer.amount;
+
+                // 2. Read tile
+                const tileRef = doc(db, 'tiles', offer.tileKey);
+                const tileSnap = await transaction.get(tileRef);
+                if (!tileSnap.exists()) throw new Error('Tile no longer exists');
+                const tile = tileSnap.data() as import('./gameState').Tile;
+                if (tile.ownerId !== user.uid) throw new Error('You no longer own this tile');
+
+                // 3. Read buyer
+                const buyerRef = doc(db, 'players', offer.buyerId);
+                const buyerSnap = await transaction.get(buyerRef);
+                if (!buyerSnap.exists()) throw new Error('Buyer account not found');
+                const buyer = buyerSnap.data() as import('./gameState').PlayerState;
+                if (buyer.balance < offer.amount) throw new Error(`Buyer only has ${buyer.balance} coins now`);
+
+                // 4. Transfer tile ownership
+                transaction.update(tileRef, {
+                    ownerId: offer.buyerId,
+                    explorerName: buyer.explorerName,
+                    color: buyer.color,
+                    timestamp: Date.now(),
+                });
+
+                // 5. Move coins
+                transaction.update(buyerRef, {
+                    balance: increment(-offer.amount),
+                    totalClaims: increment(1),
+                });
+                transaction.update(doc(db, 'players', user.uid), {
+                    balance: increment(offer.amount),
+                    totalClaims: increment(-1),
+                });
+
+                // 6. Mark this offer accepted
+                transaction.update(offerRef, { status: 'accepted' });
+            });
+
+            // 7. Batch-reject all other pending offers on the same tile
+            const offerDocSnap = await getDocs(query(collection(db, 'offers'), where('id', '==', offerId)));
+            const tileKey = offerDocSnap.docs[0]?.data()?.tileKey;
+            if (tileKey) {
+                const pendingQ = query(collection(db, 'offers'), where('tileKey', '==', tileKey), where('status', '==', 'pending'));
+                const pendingSnap = await getDocs(pendingQ);
+                const batch = writeBatch(db);
+                pendingSnap.docs.forEach(d => batch.update(d.ref, { status: 'rejected' }));
+                await batch.commit();
+            }
+
+            alert(`✅ Deal done! You received ${acceptedAmount} coins.`);
+
+            // --- Territory Invalidation ---
+            // If the sold tile was part of any territory's perimeter, that territory collapses
+            if (tileKey) {
+                const myTerritoriesQuery = query(
+                    collection(db, "captured"),
+                    where("ownerId", "==", user.uid)
+                );
+                const myTerritoriesSnap = await getDocs(myTerritoriesQuery);
+
+                for (const territoryDoc of myTerritoriesSnap.docs) {
+                    const territory = territoryDoc.data() as Territory;
+                    if (territory.perimeterSquares.includes(tileKey)) {
+                        console.log(`[Territory Invalidation] Perimeter tile ${tileKey} sold — collapsing territory ${territoryDoc.id} (${territory.enclosedSquares.length} tiles released)`);
+
+                        // Delete territory doc (capturedBy is derived client-side, no tile cleanup needed)
+                        await deleteDoc(territoryDoc.ref);
+
+                        // Decrement totalCaptured
+                        await updateDoc(doc(db, "players", user.uid), {
+                            totalCaptured: increment(-territory.enclosedSquares.length)
+                        });
+                    }
+                }
+            }
+        } catch (e: any) {
+            console.error('acceptOffer failed', e);
+            alert(`Failed to accept offer: ${e.message}`);
+        }
+    };
+
+    // --- Reject Offer ---
+    const rejectOffer = async (offerId: string) => {
+        try {
+            await updateDoc(doc(db, 'offers', offerId), { status: 'rejected' });
+        } catch (e: any) {
+            console.error('rejectOffer failed', e);
+            alert(`Failed to reject offer: ${e.message}`);
         }
     };
 
@@ -663,11 +881,14 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
     };
 
     return {
-        claims,
+        claims: enrichedClaims,
         player,
         territories,
         claimSquare,
         buySquare,
+        makeOffer,
+        acceptOffer,
+        rejectOffer,
         createPlayer,
         updatePlayerProfile,
         startPromotionCeremony,

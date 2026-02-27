@@ -1,7 +1,8 @@
 /* Blur zone behind chyron */
 .chyron-blur-zone {
     position: absolute;
-    bottom: 50px;
+    bottom: 90px;
+    /* Raised to avoid Android system bar */
     left: 0;
     right: 0;
     height: 56px;
@@ -14,10 +15,12 @@
 /* Scrolling Chyron Container */
 .chyron-container {
     position: absolute;
-    bottom: 60px;
+    bottom: 100px;
+    /* Raised to avoid Android system bar */
     left: 0;
     right: 0;
-    height: 36px;
+    height: 40px;
+    /* Slightly taller */
     background: rgba(15, 23, 42, 0.6);
     /* Darker background for contrast */
     border-top: 1px solid rgba(59, 130, 246, 0.3);
@@ -61,13 +64,15 @@
     margin-right: 40px;
     /* Space between messages */
     color: #e2e8f0;
-    font-size: 14px;
+    font-size: 16px;
+    /* Increased for mobile readability */
     font-weight: 500;
 }
 
 .chyron-icon {
     margin-right: 8px;
-    font-size: 16px;
+    font-size: 18px;
+    /* Slightly larger emoji */
 }
 
 .chyron-text.welcome {

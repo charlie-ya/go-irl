@@ -3,19 +3,28 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Players collection - users can only read/write their own profile
+    // Players collection
     match /players/{userId} {
       allow read: if true; // Anyone can read player profiles
-      
-      // CREATE: Can only create with 'Lowly Vassal' rank
-      allow create: if request.auth != null 
-                    && request.auth.uid == userId 
+
+      // CREATE: Can only create your own profile, starting as 'Lowly Vassal'
+      allow create: if request.auth != null
+                    && request.auth.uid == userId
                     && request.resource.data.rank == 'Lowly Vassal';
 
-      // UPDATE: Can update other fields, but CANNOT change rank (Server only)
-      allow update: if request.auth != null 
-                    && request.auth.uid == userId 
+      // UPDATE (own profile): Full update, but rank is server-only
+      allow update: if request.auth != null
+                    && request.auth.uid == userId
                     && request.resource.data.rank == resource.data.rank;
+
+      // UPDATE (other player - offer/trade only): Only balance & totalClaims may change
+      // This allows the seller's transaction to credit/debit the buyer's coins.
+      allow update: if request.auth != null
+                    && request.auth.uid != userId
+                    && request.resource.data.rank == resource.data.rank
+                    && request.resource.data.explorerName == resource.data.explorerName
+                    && request.resource.data.color == resource.data.color
+                    && request.resource.data.id == resource.data.id;
     }
     
     // Tiles collection - authenticated users can claim tiles
@@ -26,10 +35,35 @@ service cloud.firestore {
                                resource.data.ownerId == request.auth.uid; // Only owner can modify
     }
     
+    // Offers collection - users can make offers on tiles
+    match /offers/{offerId} {
+      allow read: if request.auth != null; // Authenticated users can read offers
+      allow create: if request.auth != null 
+                    && request.resource.data.buyerId == request.auth.uid; // Can only create offers as yourself
+      allow update: if request.auth != null 
+                    && (resource.data.sellerId == request.auth.uid 
+                        || resource.data.buyerId == request.auth.uid); // Seller or buyer can update
+      allow delete: if request.auth != null 
+                    && resource.data.buyerId == request.auth.uid; // Buyer can cancel their offer
+    }
+    
     // Captured Territories collection - read-only for all, system creates
     match /captured/{territoryId} {
       allow read: if true; // Anyone can read territories
       allow write: if request.auth != null; // Authenticated users can create territories
+    }
+
+    // Exclusion Zones collection
+    match /zones/{zoneId} {
+      allow read: if true;
+      allow write: if request.auth != null; // Temporary: Allow auth users to seed
+    }
+
+    // Referrals collection
+    match /referrals/{referralId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
     }
   }
 }

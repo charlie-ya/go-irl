@@ -1,5 +1,6 @@
 import type { GridKey } from './gridSystem';
-import { parseGridKey, STEP } from './gridSystem';
+import { parseGridKey, fromGridInt, GRID_STEP } from './gridSystem';
+import { isPointInExcludedZone } from './exclusionZones';
 
 export interface Territory {
     id: string;
@@ -14,15 +15,16 @@ export interface Territory {
 
 /**
  * Get orthogonally adjacent grid keys (up, down, left, right)
+ * Uses integer arithmetic - zero precision errors!
  */
 export function getOrthogonalNeighbors(gridKey: GridKey): GridKey[] {
-    const { lat, lng } = parseGridKey(gridKey);
+    const { latInt, lngInt } = parseGridKey(gridKey);
 
     return [
-        `${(lat + STEP).toFixed(4)},${lng.toFixed(4)}`, // North
-        `${(lat - STEP).toFixed(4)},${lng.toFixed(4)}`, // South
-        `${lat.toFixed(4)},${(lng + STEP).toFixed(4)}`, // East
-        `${lat.toFixed(4)},${(lng - STEP).toFixed(4)}`, // West
+        `${latInt + GRID_STEP}_${lngInt}`,     // North
+        `${latInt - GRID_STEP}_${lngInt}`,     // South
+        `${latInt}_${lngInt + GRID_STEP}`,     // East
+        `${latInt}_${lngInt - GRID_STEP}`,     // West
     ];
 }
 
@@ -32,14 +34,14 @@ export function getOrthogonalNeighbors(gridKey: GridKey): GridKey[] {
  */
 function floodFill(
     startKey: GridKey,
-    claims: Record<string, { ownerId: string }>,
+    claims: Record<string, { ownerId: string; capturedBy?: string }>,
     boundaryOwnerId: string,
     visited: Set<string>,
     maxIterations: number = 1000
-): { squares: Set<string>; hitBoundary: boolean } {
+): { squares: Set<string>; escaped: boolean } {
     const queue: GridKey[] = [startKey];
     const filled = new Set<string>();
-    let hitBoundary = false;
+    let escaped = false;
     let iterations = 0;
 
     while (queue.length > 0 && iterations < maxIterations) {
@@ -49,7 +51,6 @@ function floodFill(
         if (visited.has(current) || filled.has(current)) continue;
 
         visited.add(current);
-        filled.add(current);
 
         // Check if this square is owned by the boundary owner
         const tile = claims[current];
@@ -58,10 +59,34 @@ function floodFill(
             continue;
         }
 
+        // Check if this square is already captured by someone (permanent capture wall)
+        if (tile && tile.capturedBy) {
+            continue;
+        }
+
+        // EXCLUSION ZONE CHECK: Treat excluded zones as BOUNDARIES (Walls)
+        // Convert grid key to lat/lng to check
+        const { latInt, lngInt } = parseGridKey(current);
+        const lat = fromGridInt(latInt);
+        const lng = fromGridInt(lngInt);
+
+        const excluded = isPointInExcludedZone(lat, lng);
+        // Only treat PERMANENT exclusions as walls (Sacred, Sovereign, Natural)
+        if (excluded && (excluded.category === 'sacred' || excluded.category === 'sovereign' || excluded.category === 'natural')) {
+            // It's a wall!
+            continue;
+        }
+
+        // If it's owned by someone else, we effectively "passed through" their territory
+        // But for enclosure, we usually only care if we hit OUR tiles.
+        // If we hit empty space or other's space, we continue filling.
+
+        filled.add(current);
+
         // Check if we've gone too far (escaped the potential enclosure)
         // Check if we've gone too far (escaped the potential enclosure)
         if (filled.size > 500) {
-            hitBoundary = true;
+            escaped = true;
             break;
         }
 
@@ -74,33 +99,7 @@ function floodFill(
         }
     }
 
-    return { squares: filled, hitBoundary };
-}
-
-/**
- * Check if a set of squares forms a valid perimeter
- * A valid perimeter must be orthogonally connected
- */
-function isConnectedPerimeter(squares: Set<string>): boolean {
-    if (squares.size === 0) return false;
-
-    const visited = new Set<string>();
-    const queue = [Array.from(squares)[0]];
-
-    while (queue.length > 0) {
-        const current = queue.shift()!;
-        if (visited.has(current)) continue;
-        visited.add(current);
-
-        const neighbors = getOrthogonalNeighbors(current);
-        for (const neighbor of neighbors) {
-            if (squares.has(neighbor) && !visited.has(neighbor)) {
-                queue.push(neighbor);
-            }
-        }
-    }
-
-    return visited.size === squares.size;
+    return { squares: filled, escaped };
 }
 
 /**
@@ -108,56 +107,58 @@ function isConnectedPerimeter(squares: Set<string>): boolean {
  * Returns array of territories (perimeter + enclosed squares)
  */
 export function findEnclosedAreas(
-    claims: Record<string, { ownerId: string; explorerName: string; color: string }>,
+    claims: Record<string, { ownerId: string; explorerName: string; color: string; capturedBy?: string }>,
     playerId: string
 ): Array<{ perimeterSquares: string[]; enclosedSquares: string[] }> {
     const territories: Array<{ perimeterSquares: string[]; enclosedSquares: string[] }> = [];
     const playerSquares = Object.keys(claims).filter(key => claims[key].ownerId === playerId);
 
+    console.log(`[FLOOD] Player squares (first 10):`, playerSquares.slice(0, 10));
+    console.log(`[FLOOD] Total player squares: ${playerSquares.length}`);
+
     // Track which empty areas we've already processed
     const processedAreas = new Set<string>();
     const processedPerimeters = new Set<string>();
 
-    // For each player square, check neighbors for potential enclosed areas
+    // For each player square, check its neighbors for potential enclosed areas
     for (const square of playerSquares) {
         const neighbors = getOrthogonalNeighbors(square);
 
         for (const neighbor of neighbors) {
-            // Skip if already owned by player or already processed
-            if (claims[neighbor]?.ownerId === playerId) continue;
-            if (processedAreas.has(neighbor)) continue;
+            // If this neighbor is unclaimed and we haven't processed it yet
+            if (!claims[neighbor] && !processedAreas.has(neighbor)) {
+                // Try flood fill from this neighbor
+                const visited = new Set<string>();
+                const { squares: filled, escaped } = floodFill(neighbor, claims, playerId, visited);
 
-            // Try flood fill from this neighbor
-            const visited = new Set<string>();
-            const { squares: filled, hitBoundary } = floodFill(neighbor, claims, playerId, visited);
+                // Mark all filled squares as processed
+                filled.forEach(sq => processedAreas.add(sq));
 
-            // Mark all filled squares as processed
-            filled.forEach(sq => processedAreas.add(sq));
+                // If we didn't escape and found squares, we have an enclosed area
+                if (!escaped && filled.size > 0) {
+                    // Find all perimeter squares (player squares touching the filled area)
+                    const perimeterSet = new Set<string>();
 
-            // If we didn't hit a boundary and found squares, we have an enclosed area
-            // The flood fill already validates that the area is finite and surrounded
-            if (!hitBoundary && filled.size > 0) {
-                // Find all perimeter squares (player squares touching the filled area)
-                const perimeterSet = new Set<string>();
-
-                for (const enclosedSquare of filled) {
-                    const enclosedNeighbors = getOrthogonalNeighbors(enclosedSquare);
-                    for (const n of enclosedNeighbors) {
-                        if (claims[n]?.ownerId === playerId) {
-                            perimeterSet.add(n);
+                    for (const enclosedSquare of filled) {
+                        const enclosedNeighbors = getOrthogonalNeighbors(enclosedSquare);
+                        for (const n of enclosedNeighbors) {
+                            if (claims[n]?.ownerId === playerId) {
+                                perimeterSet.add(n);
+                            }
                         }
                     }
-                }
 
-                // Check if this is a new perimeter and is connected
-                const perimeterKey = Array.from(perimeterSet).sort().join('|');
-                if (!processedPerimeters.has(perimeterKey) && isConnectedPerimeter(perimeterSet)) {
-                    processedPerimeters.add(perimeterKey);
+                    // Check if this is a new perimeter (avoid duplicates)
+                    const perimeterKey = Array.from(perimeterSet).sort().join('|');
 
-                    territories.push({
-                        perimeterSquares: Array.from(perimeterSet),
-                        enclosedSquares: Array.from(filled)
-                    });
+                    if (!processedPerimeters.has(perimeterKey)) {
+                        processedPerimeters.add(perimeterKey);
+
+                        territories.push({
+                            perimeterSquares: Array.from(perimeterSet),
+                            enclosedSquares: Array.from(filled)
+                        });
+                    }
                 }
             }
         }

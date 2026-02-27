@@ -22,6 +22,7 @@ const DEFAULT_MESSAGES: ChyronMessage[] = [
     { id: 'ad_01', type: 'ad', icon: '☕', content: 'Need energy? Grab a coffee at Joe\'s!', priority: 1 },
     { id: 'tut_02', type: 'tutorial', icon: '🏃', content: 'Tip: Move around to discover new tiles!', priority: 1 },
     { id: 'tut_03', type: 'tutorial', icon: '👑', content: 'Climb the ranks by claiming more land!', priority: 1 },
+    { id: 'tut_04', type: 'tutorial', icon: '💰', content: 'Tip: Capture territory to earn bonus coins!', priority: 1 },
 ];
 
 export function ScrollingChyron({ claims, userLat, userLng, myId }: ScoringChyronProps) {

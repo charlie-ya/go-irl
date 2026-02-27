@@ -1,4 +1,5 @@
 import './StatsPanel.css';
+import { Plus } from 'lucide-react';
 
 interface StatsPanelProps {
     coins: number;
@@ -6,9 +7,10 @@ interface StatsPanelProps {
     territoriesCount: number;
     rank?: string;
     explorerName?: string;
+    onGetCoins?: () => void;
 }
 
-export function StatsPanel({ coins, tilesCount, territoriesCount, rank, explorerName }: StatsPanelProps) {
+export function StatsPanel({ coins, tilesCount, territoriesCount, rank, explorerName, onGetCoins }: StatsPanelProps) {
     const name = explorerName || 'Explorer';
     const userRank = rank || 'Vassal';
 
@@ -27,9 +29,17 @@ export function StatsPanel({ coins, tilesCount, territoriesCount, rank, explorer
                     <span className="stat-label">Captured:</span>
                     <span className="stat-val">{territoriesCount}</span>
                 </div>
-                <div className="stat-row coins-row">
+                <div
+                    className="stat-row coins-row"
+                    onClick={onGetCoins}
+                    role={onGetCoins ? "button" : undefined}
+                    style={onGetCoins ? { cursor: 'pointer' } : undefined}
+                >
                     <span className="stat-icon-small">🪙</span>
                     <span className="stat-val text-yellow-300">{coins}</span>
+                    {onGetCoins && (
+                        <Plus className="w-4 h-4 text-yellow-400/60 ml-1" />
+                    )}
                 </div>
             </div>
         </div>
