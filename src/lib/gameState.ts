@@ -287,10 +287,12 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                     result[enclosedKey] = { ...result[enclosedKey], capturedBy: territory.ownerId };
                 } else {
                     // Enclosed tile with no claim doc — create a virtual entry
+                    // Use the territory owner's color so it renders as a
+                    // transparent version of their chosen color on the map
                     result[enclosedKey] = {
                         ownerId: '',
-                        explorerName: '',
-                        color: '',
+                        explorerName: territory.explorerName || '',
+                        color: territory.color || '',
                         timestamp: 0,
                         geohash: '',
                         latInt: 0,
@@ -303,23 +305,23 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
         return result;
     }, [claims, territories]);
 
-    const claimSquare = async (gridKey: string): Promise<number> => {
-        if (!player || !auth.currentUser) return 0;
+    const claimSquare = async (gridKey: string): Promise<{ bonus: number; capturedCount: number }> => {
+        if (!player || !auth.currentUser) return { bonus: 0, capturedCount: 0 };
         if (player.balance < 1) {
             alert("Not enough coins!");
-            return 0;
+            return { bonus: 0, capturedCount: 0 };
         }
 
         // Check if already owned by someone else
         if (claims[gridKey] && claims[gridKey].ownerId !== player.id) {
             alert(`This square is already owned by ${claims[gridKey].explorerName}!`);
-            return 0;
+            return { bonus: 0, capturedCount: 0 };
         }
 
         // Check if tile is captured by another player (permanent capture protection)
         if (enrichedClaims[gridKey]?.capturedBy && enrichedClaims[gridKey].capturedBy !== player.id) {
             alert(`This area is captured territory belonging to another explorer!`);
-            return 0;
+            return { bonus: 0, capturedCount: 0 };
         }
 
         // --- Anti-Cheat: Teleportation Guard ---
@@ -343,7 +345,7 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                     if (distance < 1000) {
                         // Strict enforcement for short distance (Walking/Running > 20km/h)
                         alert(`🚫 ${limitType} speed exceeded! (${Math.round(speedKmh)} km/h). Slow down to claim.`);
-                        return 0;
+                        return { bonus: 0, capturedCount: 0 };
                     } else {
                         // DISABLED FOR TESTING: Long distance travel limit (200km/h)
                         console.log(`[TESTING] Travel speed limit bypassed: ${Math.round(speedKmh)} km/h (Limit: ${maxSpeed})`);
@@ -507,7 +509,7 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                 console.error('[Referral] Milestone check failed:', e)
             );
 
-            return captureBonus;
+            return { bonus: captureBonus, capturedCount: newCapturedTileCount };
 
         } catch (e: any) {
             console.error("Transaction failed, reverting state", e);
@@ -518,7 +520,7 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
             // Show actual error message if available
             const errorMessage = e?.message || "Unknown error (check connection?)";
             alert(`Unable to Claim Square: ${errorMessage}`);
-            return 0;
+            return { bonus: 0, capturedCount: 0 };
         }
     };
 

@@ -1,8 +1,7 @@
 /* Blur zone behind chyron */
 .chyron-blur-zone {
     position: absolute;
-    bottom: 90px;
-    /* Raised to avoid Android system bar */
+    bottom: 68px;
     left: 0;
     right: 0;
     height: 56px;
@@ -15,14 +14,11 @@
 /* Scrolling Chyron Container */
 .chyron-container {
     position: absolute;
-    bottom: 100px;
-    /* Raised to avoid Android system bar */
+    bottom: 76px;
     left: 0;
     right: 0;
     height: 40px;
-    /* Slightly taller */
     background: rgba(15, 23, 42, 0.6);
-    /* Darker background for contrast */
     border-top: 1px solid rgba(59, 130, 246, 0.3);
     border-bottom: 1px solid rgba(59, 130, 246, 0.3);
     overflow: hidden;
@@ -91,4 +87,13 @@
 
 .chyron-separator {
     color: checksum;
+}
+
+/* Native app: lower chyron closer to bottom (no browser chrome) */
+body.native .chyron-blur-zone {
+    bottom: 28px;
+}
+
+body.native .chyron-container {
+    bottom: 36px;
 }

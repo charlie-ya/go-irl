@@ -5,6 +5,7 @@ import { getGridKey, getGridSquareBounds } from '../lib/gridSystem';
 import { abbreviateUsername } from '../lib/stringUtils';
 import { NOLLI_MAP_STYLE } from '../lib/mapStyle';
 import { TerritoryRenderer } from './TerritoryRenderer';
+import { registerNolliPatterns } from '../lib/nolliPatterns';
 
 import { getExclusionZonesGeoJSON, type ExclusionZone } from '../lib/exclusionZones';
 import type { Territory } from '../lib/gameState';
@@ -18,9 +19,10 @@ interface MapBoardProps {
     claims: Record<string, { color: string; explorerName: string }>;
     territories: Territory[];
     exclusionZones: ExclusionZone[];
+    onMapReady?: (map: mapboxgl.Map) => void;
 }
 
-export function MapBoard({ lat, lng, claims, territories, exclusionZones }: MapBoardProps) {
+export function MapBoard({ lat, lng, claims, territories, exclusionZones, onMapReady }: MapBoardProps) {
     const mapRef = useRef<any>(null);
 
     // Initial View State — only computed once GPS coords are valid
@@ -33,6 +35,37 @@ export function MapBoard({ lat, lng, claims, territories, exclusionZones }: MapB
         bearing: 0,
         pitch: 0
     }), [lat, lng]); // Will only be used once — when map first mounts with real coords
+
+    // Smart re-center: fly to user position when they move off-screen
+    useEffect(() => {
+        const map = mapRef.current?.getMap?.() as mapboxgl.Map | undefined;
+        if (!map || lat === null || lng === null) return;
+
+        const bounds = map.getBounds();
+        if (!bounds) return;
+
+        // Inset the bounds by 20% so we re-center before the dot hits the very edge
+        const lngSpan = bounds.getEast() - bounds.getWest();
+        const latSpan = bounds.getNorth() - bounds.getSouth();
+        const margin = 0.2;
+
+        const innerWest = bounds.getWest() + lngSpan * margin;
+        const innerEast = bounds.getEast() - lngSpan * margin;
+        const innerSouth = bounds.getSouth() + latSpan * margin;
+        const innerNorth = bounds.getNorth() - latSpan * margin;
+
+        const isOffScreen =
+            lng < innerWest || lng > innerEast ||
+            lat < innerSouth || lat > innerNorth;
+
+        if (isOffScreen) {
+            map.flyTo({
+                center: [lng, lat],
+                duration: 1200,   // Smooth 1.2s animation
+                essential: true,  // Not affected by prefers-reduced-motion
+            });
+        }
+    }, [lat, lng]);
 
     // Prepare Claims GeoJSON (MUST be before any conditional returns!)
     const claimsGeoJSON = useMemo(() => {
@@ -116,7 +149,11 @@ export function MapBoard({ lat, lng, claims, territories, exclusionZones }: MapB
             mapboxAccessToken={MAPBOX_TOKEN}
             minZoom={15}
             maxZoom={20}
-            onLoad={() => console.log("Map Loaded")}
+            onLoad={(e) => {
+                console.log("Map Loaded");
+                registerNolliPatterns(e.target as any);
+                onMapReady?.(e.target as any);
+            }}
             onError={(e) => console.error("Map Error:", e)}
         >
             <NavigationControl position="top-right" />

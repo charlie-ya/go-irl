@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { APP_VERSION } from './lib/constants';
 import { MapBoard } from './components/MapBoard';
 import { Controls } from './components/Controls';
@@ -13,9 +13,11 @@ import { CaptureCelebration } from './components/CaptureCelebration';
 import { GetCoinsModal } from './components/GetCoinsModal';
 import { CoinShop } from './components/CoinShop';
 import { ReferralPanel } from './components/ReferralPanel';
+import { LeaderboardPanel } from './components/LeaderboardPanel';
 import { useGeolocation, isAndroidDevModeEnabled } from './lib/useGeolocation';
 import { useGameState } from './lib/gameState';
 import { useOffers, useMyOutgoingOffers } from './lib/useOffers';
+import { useBlockLeaderboard } from './lib/useBlockLeaderboard';
 import { useExclusionZones } from './lib/useExclusionZones';
 import { seedZones } from './lib/seedZones';
 import { auth, logout } from './lib/firebase';
@@ -24,7 +26,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from './lib/firebase';
 import { TextZoom } from '@capacitor/text-zoom';
 import { Capacitor } from '@capacitor/core';
-import { LogOut, Settings, Bell } from 'lucide-react';
+import { LogOut, Settings, Bell, Trophy } from 'lucide-react';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -33,14 +35,18 @@ function App() {
   const [showOffersInbox, setShowOffersInbox] = useState(false);
   const [buyerNames, setBuyerNames] = useState<Record<string, string>>({});
   const [captureBonusAmount, setCaptureBonusAmount] = useState(0);
+  const [capturedSquareCount, setCapturedSquareCount] = useState(0);
   const [showGetCoinsModal, setShowGetCoinsModal] = useState(false);
   const [showCoinShop, setShowCoinShop] = useState(false);
   const [showReferralPanel, setShowReferralPanel] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const mapInstanceRef = useRef<mapboxgl.Map | null>(null);
 
   // Global Auth & Native Init Listener
   useEffect(() => {
     // Lock text zoom on native devices
     if (Capacitor.isNativePlatform()) {
+      document.body.classList.add('native');
       TextZoom.set({ value: 1.0 }).catch((err: any) =>
         console.warn('Failed to set TextZoom', err)
       );
@@ -102,6 +108,9 @@ function App() {
   const tilesCount = player?.totalClaims ?? 0;
   const territoriesCount = player?.totalCaptured ?? 0;
 
+  // Block leaderboard (for chyron integration)
+  const blockBoard = useBlockLeaderboard(claims, player?.id);
+
   if (authLoading) return <div className="h-screen w-screen bg-slate-900 text-white flex items-center justify-center">Loading...</div>;
   if (!user) return <Login />;
   if (!player || !player.hasCompletedOnboarding) {
@@ -140,6 +149,13 @@ function App() {
             </span>
           )}
         </button>
+        <button
+          onClick={() => setShowLeaderboard(true)}
+          className="bg-slate-800 text-white p-2 rounded-full shadow-lg hover:bg-slate-700 transition-colors"
+          title="Leaderboard"
+        >
+          <Trophy className="w-5 h-5" />
+        </button>
       </div>
 
       {/* Offers Inbox Modal */}
@@ -150,6 +166,16 @@ function App() {
         onAccept={async (id) => { await acceptOffer(id); }}
         onReject={async (id) => { await rejectOffer(id); }}
         buyerNames={buyerNames}
+      />
+
+      {/* Leaderboard Panel */}
+      <LeaderboardPanel
+        isOpen={showLeaderboard}
+        onClose={() => setShowLeaderboard(false)}
+        claims={claims}
+        myId={player?.id}
+        userLat={userLocation.lat ?? undefined}
+        userLng={userLocation.lng ?? undefined}
       />
 
       {/* Profile Editor Modal */}
@@ -174,6 +200,7 @@ function App() {
         claims={claims}
         territories={territories}
         exclusionZones={zones}
+        onMapReady={(m) => { mapInstanceRef.current = m; }}
       />
 
       {/* Stats Panel */}
@@ -192,6 +219,8 @@ function App() {
         userLat={userLocation.lat}
         userLng={userLocation.lng}
         myId={player?.id}
+        blockLeader={blockBoard.entries[0]?.explorerName}
+        isBlockLeaderMe={blockBoard.entries[0]?.isMe}
       />
 
       <Controls
@@ -199,9 +228,12 @@ function App() {
         lng={userLocation.lng || 0}
         locationLoading={userLocation.loading}
         onClaim={async (key) => {
-          const bonus = await claimSquare(key);
-          if (bonus > 0) setCaptureBonusAmount(bonus);
-          return bonus;
+          const result = await claimSquare(key);
+          if (result.bonus > 0) {
+            setCaptureBonusAmount(result.bonus);
+            setCapturedSquareCount(result.capturedCount);
+          }
+          return result;
         }}
         onMakeOffer={makeOffer}
         userBalance={player.balance}
@@ -232,7 +264,32 @@ function App() {
       {captureBonusAmount > 0 && (
         <CaptureCelebration
           bonus={captureBonusAmount}
-          onDismiss={() => setCaptureBonusAmount(0)}
+          onDismiss={() => {
+            setCaptureBonusAmount(0);
+            setCapturedSquareCount(0);
+          }}
+          onShare={async () => {
+            if (!mapInstanceRef.current || !player) {
+              setCaptureBonusAmount(0);
+              setCapturedSquareCount(0);
+              return;
+            }
+            try {
+              const { captureShareCard, shareCard } = await import('./lib/shareCardService');
+              const blob = await captureShareCard(mapInstanceRef.current, {
+                explorerName: player.explorerName,
+                rank: player.rank,
+                colour: player.color,
+                playerId: player.id,
+                capturedSquareCount,
+              });
+              await shareCard(blob, player.id, capturedSquareCount);
+            } catch (e) {
+              console.error('[ShareCard] Failed:', e);
+            }
+            setCaptureBonusAmount(0);
+            setCapturedSquareCount(0);
+          }}
         />
       )}
 

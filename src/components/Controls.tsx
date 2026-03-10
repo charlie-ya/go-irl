@@ -19,7 +19,7 @@ interface ControlsProps {
     lat: number;
     lng: number;
     locationLoading: boolean;
-    onClaim: (key: string) => Promise<number>;
+    onClaim: (key: string) => Promise<{ bonus: number; capturedCount: number }>;
     onMakeOffer: (key: string, amount: number) => void;
     userBalance: number;
     onGetCoins: () => void;
@@ -54,7 +54,7 @@ export function Controls({
     const ceremonyHere = activeCeremony && activeCeremony.id === currentKey ? activeCeremony : null;
 
     return (
-        <div className="absolute bottom-44 left-0 right-0 px-4 z-[1000] flex flex-col items-center gap-4">
+        <div className="absolute bottom-28 left-0 right-0 px-4 z-[1000] flex flex-col items-center gap-4">
 
             {/* --- OWNER VIEW --- */}
             {isOwnedByMe && (

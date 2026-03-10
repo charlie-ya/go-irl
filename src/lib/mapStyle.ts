@@ -17,7 +17,7 @@ export const NOLLI_MAP_STYLE: Style = {
         }
     },
     sprite: "mapbox://sprites/mapbox/light-v10",
-    glyphs: "mapbox://fonts/mapbox/{fontstack}/{range}.pbf",
+    glyphs: "mapbox://fonts/charlie-yawitz/{fontstack}/{range}.pbf",
     layers: [
         // Background - White (represents Streets/Public Space)
         {
@@ -57,22 +57,21 @@ export const NOLLI_MAP_STYLE: Style = {
             "source-layer": "water",
             type: "fill",
             paint: {
-                "fill-color": "#d0d0d0"
+                "fill-color": "#a0a0a0"
             }
         },
 
-        // Buildings - "Figure"
-        // User wants: Not uniformly black, black outline, "fine horizontal cross hatch"
-        // Simulating hatch with a textured grey or just a clean fill + outline.
+        // Buildings - "Figure" with horizontal hatch pattern
+        // Pattern is registered at runtime via nolliPatterns.ts
+        // Falls back to solid fill if pattern not yet loaded
         {
             id: "building-fill",
             source: "mapbox",
             "source-layer": "building",
             type: "fill",
             paint: {
-                // Using a darker warm grey to stand out from lots, but not black
-                "fill-color": "#b0aead",
-                "fill-opacity": 0.8
+                "fill-pattern": "nolli-building-hatch",
+                "fill-opacity": 0.9
             }
         },
         {
@@ -81,31 +80,180 @@ export const NOLLI_MAP_STYLE: Style = {
             "source-layer": "building",
             type: "line",
             paint: {
-                "line-color": "#000000",
-                "line-width": 1
+                "line-color": "#222222",
+                "line-width": 1.2
             }
         },
 
-        // Roads - Solid Color Fill
+        // Parks & Gardens — stylized tree-top pattern
         {
-            id: "road-fill",
+            id: "park-fill",
+            source: "mapbox",
+            "source-layer": "landuse",
+            type: "fill",
+            filter: ["in", "class", "park", "garden", "playground", "pitch"],
+            paint: {
+                "fill-pattern": "nolli-park",
+                "fill-opacity": 0.85
+            }
+        },
+
+        // Forest / Woodland — denser tree pattern
+        {
+            id: "forest-fill",
+            source: "mapbox",
+            "source-layer": "landuse",
+            type: "fill",
+            filter: ["in", "class", "wood", "scrub", "national_park"],
+            paint: {
+                "fill-pattern": "nolli-forest",
+                "fill-opacity": 0.85
+            }
+        },
+
+        // Agriculture — furrow pattern with grass
+        {
+            id: "agriculture-fill",
+            source: "mapbox",
+            "source-layer": "landuse",
+            type: "fill",
+            filter: ["in", "class", "agriculture", "grass", "meadow"],
+            paint: {
+                "fill-pattern": "nolli-agriculture",
+                "fill-opacity": 0.85
+            }
+        },
+
+        // =========================================================
+        // ROADS — Classified by type (Nolli: public = void/white)
+        // =========================================================
+
+        // Major roads casing (dark edge for definition)
+        {
+            id: "road-major-casing",
             source: "mapbox",
             "source-layer": "road",
             type: "line",
+            filter: ["in", "class", "motorway", "trunk", "primary", "secondary"],
             layout: {
                 "line-cap": "round",
                 "line-join": "round"
             },
             paint: {
-                "line-color": "#cccccc", // Darker grey for streets
+                "line-color": "#b0b0b0",
                 "line-width": [
-                    "interpolate",
-                    ["linear"],
-                    ["zoom"],
-                    12, 1,
+                    "interpolate", ["linear"], ["zoom"],
+                    12, 2,
+                    15, 6,
+                    18, 16
+                ]
+            }
+        },
+        // Major roads fill (white — public void)
+        {
+            id: "road-major-fill",
+            source: "mapbox",
+            "source-layer": "road",
+            type: "line",
+            filter: ["in", "class", "motorway", "trunk", "primary", "secondary"],
+            layout: {
+                "line-cap": "round",
+                "line-join": "round"
+            },
+            paint: {
+                "line-color": "#ffffff",
+                "line-width": [
+                    "interpolate", ["linear"], ["zoom"],
+                    12, 1.5,
+                    15, 5,
+                    18, 14
+                ]
+            }
+        },
+
+        // Local streets casing
+        {
+            id: "road-street-casing",
+            source: "mapbox",
+            "source-layer": "road",
+            type: "line",
+            filter: ["in", "class", "tertiary", "street", "street_limited"],
+            layout: {
+                "line-cap": "round",
+                "line-join": "round"
+            },
+            paint: {
+                "line-color": "#c0c0c0",
+                "line-width": [
+                    "interpolate", ["linear"], ["zoom"],
+                    12, 0.5,
                     15, 3,
                     18, 10
                 ]
+            }
+        },
+        // Local streets fill (white — public void)
+        {
+            id: "road-street-fill",
+            source: "mapbox",
+            "source-layer": "road",
+            type: "line",
+            filter: ["in", "class", "tertiary", "street", "street_limited"],
+            layout: {
+                "line-cap": "round",
+                "line-join": "round"
+            },
+            paint: {
+                "line-color": "#ffffff",
+                "line-width": [
+                    "interpolate", ["linear"], ["zoom"],
+                    12, 0,
+                    15, 2,
+                    18, 8
+                ]
+            }
+        },
+
+        // Service roads & driveways (private — subtle, thin, grey)
+        {
+            id: "road-service",
+            source: "mapbox",
+            "source-layer": "road",
+            type: "line",
+            filter: ["in", "class", "service", "driveway"],
+            layout: {
+                "line-cap": "round",
+                "line-join": "round"
+            },
+            paint: {
+                "line-color": "#d5d3ca",
+                "line-width": [
+                    "interpolate", ["linear"], ["zoom"],
+                    15, 0.5,
+                    18, 3
+                ]
+            }
+        },
+
+        // Pedestrian & paths (dashed — walkable but not vehicular)
+        {
+            id: "road-path",
+            source: "mapbox",
+            "source-layer": "road",
+            type: "line",
+            filter: ["in", "class", "path", "pedestrian", "track"],
+            layout: {
+                "line-cap": "round",
+                "line-join": "round"
+            },
+            paint: {
+                "line-color": "#b8b8b8",
+                "line-width": [
+                    "interpolate", ["linear"], ["zoom"],
+                    15, 0.5,
+                    18, 2
+                ],
+                "line-dasharray": [2, 2]
             }
         },
 
@@ -118,11 +266,13 @@ export const NOLLI_MAP_STYLE: Style = {
             "source-layer": "road",
             type: "symbol",
             layout: {
+                "symbol-placement": "line",
+                "symbol-spacing": 300,
                 "text-field": ["get", "name"],
-                "text-font": ["Arial Unicode MS Regular"],
-                "text-size": 12,
+                "text-font": ["Cormorant Garamond Italic", "DIN Offc Pro Italic", "Arial Unicode MS Regular"],
+                "text-size": 11,
                 "text-transform": "uppercase",
-                "text-letter-spacing": 0.1
+                "text-letter-spacing": 0.15
             },
             paint: {
                 "text-color": "#000000",
@@ -140,8 +290,8 @@ export const NOLLI_MAP_STYLE: Style = {
             minzoom: 15,
             layout: {
                 "text-field": ["get", "name"],
-                "text-font": ["Arial Unicode MS Regular"],
-                "text-size": 10,
+                "text-font": ["Cormorant Garamond Italic", "DIN Offc Pro Italic", "Arial Unicode MS Regular"],
+                "text-size": 14,
                 "text-max-width": 8
             },
             paint: {

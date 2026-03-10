@@ -15,6 +15,8 @@ interface ScoringChyronProps {
     userLat: number | null;
     userLng: number | null;
     myId?: string;
+    blockLeader?: string; // Explorer name of the #1 player on the block
+    isBlockLeaderMe?: boolean;
 }
 
 const DEFAULT_MESSAGES: ChyronMessage[] = [
@@ -25,7 +27,7 @@ const DEFAULT_MESSAGES: ChyronMessage[] = [
     { id: 'tut_04', type: 'tutorial', icon: '💰', content: 'Tip: Capture territory to earn bonus coins!', priority: 1 },
 ];
 
-export function ScrollingChyron({ claims, userLat, userLng, myId }: ScoringChyronProps) {
+export function ScrollingChyron({ claims, userLat, userLng, myId, blockLeader, isBlockLeaderMe }: ScoringChyronProps) {
     // Current list of messages to display in the loop
     const [messages, setMessages] = useState<ChyronMessage[]>(DEFAULT_MESSAGES);
     const lastGridKeyRef = useRef<string | null>(null);
@@ -64,6 +66,26 @@ export function ScrollingChyron({ claims, userLat, userLng, myId }: ScoringChyro
             }
         }
     }, [userLat, userLng, claims, myId]);
+
+    // Inject block leader message
+    useEffect(() => {
+        if (!blockLeader) return;
+
+        const leaderMsg: ChyronMessage = {
+            id: `leader_${Date.now()}`,
+            type: 'system',
+            icon: isBlockLeaderMe ? '👑' : '⚔️',
+            content: isBlockLeaderMe
+                ? 'You rule this block!'
+                : `${blockLeader} leads this area`,
+            priority: 8
+        };
+
+        setMessages(prev => {
+            const withoutOldLeader = prev.filter(m => !m.id.startsWith('leader_'));
+            return [leaderMsg, ...withoutOldLeader];
+        });
+    }, [blockLeader, isBlockLeaderMe]);
 
 
     // Duplicate messages for seamless loop

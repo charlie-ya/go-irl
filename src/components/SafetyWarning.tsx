@@ -5,16 +5,21 @@ export function SafetyWarning() {
     const [acknowledged, setAcknowledged] = useState(false);
 
     useEffect(() => {
-        // Check if already acknowledged in this session
-        const hasSeen = sessionStorage.getItem('safety_warning_seen');
-        if (hasSeen) {
-            setAcknowledged(true);
+        // Show once per day (localStorage survives tab close; sessionStorage
+        // can persist across SPA reloads in the same tab, causing the
+        // warning to never reappear on web)
+        const lastSeen = localStorage.getItem('safety_warning_seen');
+        if (lastSeen) {
+            const hoursAgo = (Date.now() - parseInt(lastSeen, 10)) / (1000 * 60 * 60);
+            if (hoursAgo < 24) {
+                setAcknowledged(true);
+            }
         }
     }, []);
 
     const handleDismiss = () => {
         setAcknowledged(true);
-        sessionStorage.setItem('safety_warning_seen', 'true');
+        localStorage.setItem('safety_warning_seen', Date.now().toString());
     };
 
     if (acknowledged) return null;
