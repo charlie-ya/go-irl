@@ -2,6 +2,7 @@ import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, signInWithCredential } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
+import { Capacitor } from '@capacitor/core';
 
 // Firebase configuration loaded from environment variables
 // See .env.example for required variables
@@ -22,11 +23,18 @@ export const googleProvider = new GoogleAuthProvider();
 
 export const signInWithGoogleNative = async () => {
     try {
-        await GoogleAuth.initialize({
-            clientId: '675006608980-ia7sek9fmsnrv2um9q2jfs7hg8umh2c9.apps.googleusercontent.com',
+        const authOptions: any = {
             scopes: ['profile', 'email'],
             grantOfflineAccess: true,
-        });
+        };
+        
+        // Pass the web client ID explicitly on web, 
+        // but let the native plugin read from the plist / capacitor config directly
+        if (!Capacitor.isNativePlatform()) {
+            authOptions.clientId = '675006608980-ia7sek9fmsnrv2um9q2jfs7hg8umh2c9.apps.googleusercontent.com';
+        }
+
+        await GoogleAuth.initialize(authOptions);
 
         const user = await GoogleAuth.signIn();
         const idToken = user.authentication.idToken;
