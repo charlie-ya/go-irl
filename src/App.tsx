@@ -158,6 +158,21 @@ function App() {
         </button>
       </div>
 
+      {/* Pending Offers Warning Banner */}
+      {pendingOffers.length > 0 && (
+        <div className="absolute top-16 left-4 right-4 z-[2000] flex justify-center pointer-events-none">
+          <button 
+            onClick={() => setShowOffersInbox(true)}
+            className="pointer-events-auto bg-amber-500/90 hover:bg-amber-500 text-white text-sm sm:text-base font-bold px-4 py-2.5 rounded-xl shadow-lg border border-amber-400/50 backdrop-blur-md transition-all flex items-center gap-2 max-w-lg text-center leading-tight animate-in slide-in-from-top-4"
+          >
+            <Bell className="w-5 h-5 flex-shrink-0 animate-[wiggle_1s_ease-in-out_infinite]" />
+            <span>
+              You have {pendingOffers.length} unanswered offer{pendingOffers.length === 1 ? '' : 's'}. Accept or reject new offers within 5 days, or you will forfeit the square for half price!
+            </span>
+          </button>
+        </div>
+      )}
+
       {/* Offers Inbox Modal */}
       <OffersInbox
         isOpen={showOffersInbox}

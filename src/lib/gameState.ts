@@ -745,6 +745,18 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
         }
 
         try {
+            // Check if there is already a pending offer for this tile
+            const pendingQuery = query(
+                collection(db, "offers"),
+                where("tileKey", "==", tileKey),
+                where("status", "==", "pending")
+            );
+            const pendingSnap = await getDocs(pendingQuery);
+            if (!pendingSnap.empty) {
+                alert("There is already a pending offer on this square. Only one offer is allowed at a time.");
+                return;
+            }
+
             const offerRef = doc(collection(db, "offers"));
             const offer: Offer = {
                 id: offerRef.id,
