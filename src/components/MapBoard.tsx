@@ -16,13 +16,14 @@ const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 interface MapBoardProps {
     lat: number | null;
     lng: number | null;
+    selectedGridKey?: string | null;
     claims: Record<string, { color: string; explorerName: string }>;
     territories: Territory[];
     exclusionZones: ExclusionZone[];
     onMapReady?: (map: mapboxgl.Map) => void;
 }
 
-export function MapBoard({ lat, lng, claims, territories, exclusionZones, onMapReady }: MapBoardProps) {
+export function MapBoard({ lat, lng, selectedGridKey, claims, territories, exclusionZones, onMapReady }: MapBoardProps) {
     const mapRef = useRef<any>(null);
 
     // Initial View State — only computed once GPS coords are valid
@@ -118,6 +119,28 @@ export function MapBoard({ lat, lng, claims, territories, exclusionZones, onMapR
             }
         };
     }, [lat, lng]);
+
+    // Selected Grid Highlight
+    const selectedGridGeoJSON = useMemo(() => {
+        if (!selectedGridKey) {
+            return {
+                type: 'Feature',
+                geometry: { type: 'Polygon', coordinates: [[]] }
+            };
+        }
+
+        const bounds = getGridSquareBounds(selectedGridKey);
+        const coords = bounds.map(coord => [coord[1], coord[0]]);
+        coords.push(coords[0]);
+
+        return {
+            type: 'Feature',
+            geometry: {
+                type: 'Polygon',
+                coordinates: [coords]
+            }
+        };
+    }, [selectedGridKey]);
 
     // Exclusion Zones GeoJSON (Static for now, but good to memoize if we make it dynamic)
     const exclusionZonesGeoJSON = useMemo(() => {
@@ -237,6 +260,19 @@ export function MapBoard({ lat, lng, claims, territories, exclusionZones, onMapR
                         'line-width': 2,
                         'line-dasharray': [2, 2],
                         'line-opacity': 0.5
+                    }}
+                />
+            </Source>
+
+            {/* Selected Grid Highlight */}
+            <Source id="selected-grid-source" type="geojson" data={selectedGridGeoJSON as any}>
+                <Layer
+                    id="selected-grid-line"
+                    type="line"
+                    paint={{
+                        'line-color': '#ffffff',
+                        'line-width': 3,
+                        'line-opacity': 0.9
                     }}
                 />
             </Source>

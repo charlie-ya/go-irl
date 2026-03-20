@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { APP_VERSION } from './lib/constants';
 import { MapBoard } from './components/MapBoard';
 import { Controls } from './components/Controls';
@@ -16,6 +16,7 @@ import { ReferralPanel } from './components/ReferralPanel';
 import { LeaderboardPanel } from './components/LeaderboardPanel';
 import { useGeolocation, isAndroidDevModeEnabled } from './lib/useGeolocation';
 import { useGameState } from './lib/gameState';
+import { getGridKey, parseGridKey } from './lib/gridSystem';
 import { useOffers, useMyOutgoingOffers } from './lib/useOffers';
 import { useBlockLeaderboard } from './lib/useBlockLeaderboard';
 import { useExclusionZones } from './lib/useExclusionZones';
@@ -40,6 +41,7 @@ function App() {
   const [showCoinShop, setShowCoinShop] = useState(false);
   const [showReferralPanel, setShowReferralPanel] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [selectionOffset, setSelectionOffset] = useState({ latOffset: 0, lngOffset: 0 });
   const mapInstanceRef = useRef<mapboxgl.Map | null>(null);
 
   // Global Auth & Native Init Listener
@@ -74,7 +76,7 @@ function App() {
     claims, player, territories,
     claimSquare, makeOffer, acceptOffer, rejectOffer,
     createPlayer, updatePlayerProfile,
-    affirmPromotion, completePromotion, activeCeremony
+    affirmPromotion, completePromotion, activeCeremony, startPromotionCeremony
   } = useGameState(
     userLocation.lat ?? undefined,
     userLocation.lng ?? undefined,
@@ -110,6 +112,26 @@ function App() {
 
   // Block leaderboard (for chyron integration)
   const blockBoard = useBlockLeaderboard(claims, player?.id);
+
+  // Determine current and selected grid keys
+  const currentGridKey = userLocation.lat !== null && userLocation.lng !== null
+      ? getGridKey(userLocation.lat, userLocation.lng)
+      : null;
+
+  const selectedGridKey = useMemo(() => {
+    if (!currentGridKey) return null;
+    if (selectionOffset.latOffset === 0 && selectionOffset.lngOffset === 0) return currentGridKey;
+
+    const { latInt, lngInt } = parseGridKey(currentGridKey);
+    const newLatInt = latInt + selectionOffset.latOffset;
+    const newLngInt = lngInt + selectionOffset.lngOffset;
+    return `${newLatInt}_${newLngInt}`;
+  }, [currentGridKey, selectionOffset]);
+
+  // Reset offset if user moves to a new grid square (optional, but good for UX)
+  useEffect(() => {
+    setSelectionOffset({ latOffset: 0, lngOffset: 0 });
+  }, [currentGridKey]);
 
   if (authLoading) return <div className="h-screen w-screen bg-slate-900 text-white flex items-center justify-center">Loading...</div>;
   if (!user) return <Login />;
@@ -212,6 +234,7 @@ function App() {
       <MapBoard
         lat={userLocation.lat}
         lng={userLocation.lng}
+        selectedGridKey={selectedGridKey}
         claims={claims}
         territories={territories}
         exclusionZones={zones}
@@ -242,6 +265,9 @@ function App() {
         lat={userLocation.lat || 0}
         lng={userLocation.lng || 0}
         locationLoading={userLocation.loading}
+        selectedGridKey={selectedGridKey}
+        selectionOffset={selectionOffset}
+        onOffsetChange={setSelectionOffset}
         onClaim={async (key) => {
           const result = await claimSquare(key);
           if (result.bonus > 0) {
@@ -254,9 +280,11 @@ function App() {
         userBalance={player.balance}
         onGetCoins={() => setShowGetCoinsModal(true)}
 
+        onStartCeremony={startPromotionCeremony}
         onAffirm={affirmPromotion}
         onCompleteCeremony={completePromotion}
         activeCeremony={activeCeremony}
+        playerRank={player.rank || 'Lowly Vassal'}
 
         myId={player.id}
         myColor={player.color}
@@ -342,6 +370,31 @@ function App() {
         {APP_VERSION}
       </div>
 
+      {/* Ceremony Success Celebration */}
+      {activeCeremony?.status === 'completed' && (
+        activeCeremony.ownerId === player.id || activeCeremony.affirmations.includes(player.id)
+      ) && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-[5000] p-6 animate-in fade-in duration-500">
+          <div className="text-center max-w-sm">
+            <div className="text-6xl mb-4 animate-bounce">🎉</div>
+            <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-300 mb-3">
+              {activeCeremony.ownerId === player.id ? 'You Ascended!' : `${activeCeremony.ownerName} Ascended!`}
+            </h1>
+            <p className="text-slate-300 text-lg mb-2">
+              {activeCeremony.ownerId === player.id
+                ? 'Your loyalty has been recognized by your subjects.'
+                : 'You witnessed a historic promotion ceremony!'}
+            </p>
+            <p className="text-amber-400 font-semibold text-sm mb-6">
+              {activeCeremony.affirmations.length + 1} explorers gathered
+            </p>
+            <div className="text-4xl mb-4">👑</div>
+            <p className="text-xs text-slate-500">
+              This celebration will dismiss automatically.
+            </p>
+          </div>
+        </div>
+      )}
 
     </div>
   );

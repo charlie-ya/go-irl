@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { db, auth } from './firebase';
-import { collection, doc, onSnapshot, setDoc, updateDoc, increment, getDocs, deleteDoc, query, where, getCountFromServer, runTransaction, writeBatch } from 'firebase/firestore';
+import { collection, doc, onSnapshot, setDoc, updateDoc, increment, getDocs, deleteDoc, query, where, getCountFromServer, runTransaction, writeBatch, arrayUnion, serverTimestamp } from 'firebase/firestore';
 
 
 import { findEnclosedAreas, type Territory } from './captureLogic';
 import { calculateCaptureBonus } from './captureBonus';
 import { getGeohash, getGeohashWithNeighbors, calculateDistance, TILE_LOAD_RADIUS_METERS, LOCATION_UPDATE_THRESHOLD } from './geohashUtils';
-import { parseGridKey, getGridKey, getGridFloats, fromGridInt } from './gridSystem';
+import { parseGridKey, getGridKey, getGridFloats, fromGridInt, GRID_STEP } from './gridSystem';
 import { TileStorage } from './tileStorage';
 import { applyReferralCode, checkAndAwardReferralMilestones } from './referralService';
 
@@ -53,6 +53,7 @@ export interface PromotionCeremony {
     ownerName: string;
     startedAt: number;
     affirmations: string[]; // List of userIds who affirmed
+    status: 'active' | 'completed';
 }
 
 export interface Offer {
@@ -71,11 +72,11 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
     const [claims, setClaims] = useState<GameState>({});
     const [player, setPlayer] = useState<PlayerState | null>(null);
     const [territories, setTerritories] = useState<Territory[]>([]);
-    const [activeCeremony] = useState<PromotionCeremony | null>(null);
+    const [activeCeremony, setActiveCeremony] = useState<PromotionCeremony | null>(null);
     const lastQueryLocation = useRef<{ lat: number; lng: number } | null>(null);
     const hasVerifiedStats = useRef<boolean>(false);
 
-    // Listen to Nearby Tiles (200m radius)
+    // Listen to Nearby Tiles (dynamic radius based on rank)
     useEffect(() => {
         if (userLat === undefined || userLng === undefined) {
             // No location yet, don't load tiles
@@ -105,6 +106,9 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
         // Update last query location
         lastQueryLocation.current = { lat: userLat, lng: userLng };
 
+        // Determine load radius
+        const loadRadius = player?.rank === 'Minion' || player?.rank === 'Centurion' ? 300 : TILE_LOAD_RADIUS_METERS;
+
         // Get geohashes for user location + neighbors
         const geohashes = getGeohashWithNeighbors(userLat, userLng);
 
@@ -119,7 +123,7 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                     const tileLat = fromGridInt(tile.latInt);
                     const tileLng = fromGridInt(tile.lngInt);
                     const distance = calculateDistance(userLat, userLng, tileLat, tileLng);
-                    if (distance <= TILE_LOAD_RADIUS_METERS) {
+                    if (distance <= loadRadius) {
                         newClaims[doc.id] = tile;
                     }
                 });
@@ -131,7 +135,7 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
         return () => {
             unsubscribers.forEach(unsub => unsub());
         };
-    }, [userLat, userLng, isMovingTooFast]);
+    }, [userLat, userLng, isMovingTooFast, player?.rank]);
 
     // Listen to My Player Data
     useEffect(() => {
@@ -325,10 +329,10 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
         }
 
         // --- Anti-Cheat: Teleportation Guard ---
-        // Calculate distance/speed from last claim
-        const { lat, lng } = getGridFloats(gridKey); // Get float coords for distance calc
-        if (player.lastClaimTimestamp && player.lastClaimLat && player.lastClaimLng) {
-            const distance = calculateDistance(player.lastClaimLat, player.lastClaimLng, lat, lng);
+        // Calculate distance/speed from last claim based on player's physical movement
+        const { lat, lng } = getGridFloats(gridKey); // Get float coords for geohash/tile storage
+        if (player.lastClaimTimestamp && player.lastClaimLat && player.lastClaimLng && userLat && userLng) {
+            const distance = calculateDistance(player.lastClaimLat, player.lastClaimLng, userLat, userLng);
             const timeDiff = (Date.now() - player.lastClaimTimestamp) / 1000; // seconds
 
             if (timeDiff > 0) {
@@ -462,8 +466,8 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                 const playerUpdates: any = {
                     balance: increment(-1 + captureBonus),
                     lastClaimTimestamp: Date.now(),
-                    lastClaimLat: lat,
-                    lastClaimLng: lng,
+                    lastClaimLat: userLat || lat,
+                    lastClaimLng: userLng || lng,
                     totalClaims: increment(1)
                 };
 
@@ -499,8 +503,8 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                 ...prev,
                 balance: prev.balance + captureBonus,  // Add capture bonus to optimistic balance
                 lastClaimTimestamp: Date.now(),
-                lastClaimLat: lat,
-                lastClaimLng: lng,
+                lastClaimLat: userLat || lat,
+                lastClaimLng: userLng || lng,
                 totalCaptured: (prev.totalCaptured || 0) + newCapturedTileCount
             }) : null);
 
@@ -883,15 +887,142 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
         }
     };
 
-    // --- Promotion Ceremony Stubs (Impl later) ---
+    // --- Promotion Ceremony ---
+
+    // Real-time listener for ceremonies on/near the current grid key
+    useEffect(() => {
+        if (!auth.currentUser || !userLat || !userLng) return;
+
+        const currentGridKey = getGridKey(userLat, userLng);
+        const { latInt, lngInt } = parseGridKey(currentGridKey);
+
+        // Listen to the current tile + 8 adjacent tiles
+        const keysToWatch: string[] = [];
+        for (let dLat = -GRID_STEP; dLat <= GRID_STEP; dLat += GRID_STEP) {
+            for (let dLng = -GRID_STEP; dLng <= GRID_STEP; dLng += GRID_STEP) {
+                keysToWatch.push(`${latInt + dLat}_${lngInt + dLng}`);
+            }
+        }
+
+        // Create listeners for each possible ceremony key
+        const unsubscribers = keysToWatch.map(key => {
+            const ceremonyRef = doc(db, 'ceremonies', key);
+            return onSnapshot(ceremonyRef, (snap) => {
+                if (snap.exists()) {
+                    const data = snap.data();
+                    if (data.status === 'active') {
+                        setActiveCeremony({
+                            id: snap.id,
+                            ownerId: data.ownerId,
+                            ownerName: data.ownerName || 'Unknown',
+                            startedAt: data.startedAt || data.createdAt?.toMillis?.() || Date.now(),
+                            affirmations: data.affirmations || [],
+                            status: 'active',
+                        });
+                        return; // Found an active ceremony, stop looking
+                    } else if (data.status === 'completed') {
+                        // Briefly show completed state so CeremonySuccess modal can trigger
+                        setActiveCeremony({
+                            id: snap.id,
+                            ownerId: data.ownerId,
+                            ownerName: data.ownerName || 'Unknown',
+                            startedAt: data.startedAt || 0,
+                            affirmations: data.affirmations || [],
+                            status: 'completed',
+                        });
+                    }
+                }
+            });
+        });
+
+        return () => {
+            unsubscribers.forEach(unsub => unsub());
+            setActiveCeremony(null);
+        };
+    }, [userLat, userLng]);
+
     const startPromotionCeremony = async () => {
-        console.log("Promotion Ceremony not implemented yet");
+        if (!player || !auth.currentUser || !userLat || !userLng) return;
+
+        const gridKey = getGridKey(userLat, userLng);
+        const tile = claims[gridKey];
+
+        // Must be on a tile they own
+        if (!tile || tile.ownerId !== player.id) {
+            alert('You must be standing on your own square to start a ceremony.');
+            return;
+        }
+
+        // Check if a ceremony already exists here
+        if (activeCeremony && activeCeremony.id === gridKey) {
+            alert('A ceremony is already active on this square!');
+            return;
+        }
+
+        try {
+            const ceremonyRef = doc(db, 'ceremonies', gridKey);
+            await setDoc(ceremonyRef, {
+                ownerId: player.id,
+                ownerName: player.explorerName || 'Anonymous',
+                affirmations: [],
+                status: 'active',
+                createdAt: serverTimestamp(),
+                startedAt: Date.now(),
+            });
+            console.log(`[Ceremony] Started promotion ceremony at ${gridKey}`);
+        } catch (e: any) {
+            console.error('Failed to start ceremony:', e);
+            alert(`Failed to start ceremony: ${e.message}`);
+        }
     };
-    const affirmPromotion = async (_ceremonyId: string) => {
-        console.log("Affirmation not implemented yet");
+
+    const affirmPromotion = async (ceremonyGridKey: string) => {
+        if (!player || !auth.currentUser || !userLat || !userLng) return;
+
+        // Verify the player is on the ceremony tile or one of the 8 adjacent tiles
+        const myKey = getGridKey(userLat, userLng);
+        const { latInt: myLat, lngInt: myLng } = parseGridKey(myKey);
+        const { latInt: cerLat, lngInt: cerLng } = parseGridKey(ceremonyGridKey);
+
+        const latDiff = Math.abs(myLat - cerLat);
+        const lngDiff = Math.abs(myLng - cerLng);
+
+        if (latDiff > GRID_STEP || lngDiff > GRID_STEP) {
+            alert('You must be on or adjacent to the ceremony square to affirm!');
+            return;
+        }
+
+        try {
+            const ceremonyRef = doc(db, 'ceremonies', ceremonyGridKey);
+            await updateDoc(ceremonyRef, {
+                affirmations: arrayUnion(player.id),
+            });
+            console.log(`[Ceremony] Affirmed at ${ceremonyGridKey}`);
+        } catch (e: any) {
+            console.error('Failed to affirm:', e);
+            alert(`Failed to affirm: ${e.message}`);
+        }
     };
-    const completePromotion = async (_ceremonyId: string) => {
-        console.log("Completion not implemented yet");
+
+    const completePromotion = async (ceremonyGridKey: string) => {
+        if (!player || !auth.currentUser) return;
+
+        try {
+            const { getFunctions, httpsCallable } = await import('firebase/functions');
+            const functions = getFunctions();
+            const completeCeremonyFn = httpsCallable(functions, 'completeCeremony');
+
+            const result = await completeCeremonyFn({ gridKey: ceremonyGridKey });
+            const data = result.data as any;
+
+            if (data.success) {
+                console.log(`[Ceremony] ${data.message}`);
+                // The Firestore listener will automatically pick up the status change
+            }
+        } catch (e: any) {
+            console.error('Failed to complete ceremony:', e);
+            alert(`Failed to complete ceremony: ${e.message || 'Unknown error'}`);
+        }
     };
 
     return {

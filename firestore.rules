@@ -71,5 +71,24 @@ service cloud.firestore {
       allow create: if request.auth != null;
       allow update: if request.auth != null;
     }
+
+    // Promotion Ceremonies collection
+    match /ceremonies/{gridKey} {
+      allow read: if request.auth != null;
+
+      // Only the ceremony owner can create (must set themselves as ownerId)
+      allow create: if request.auth != null
+                    && request.resource.data.ownerId == request.auth.uid
+                    && request.resource.data.status == 'active';
+
+      // Any authenticated user can update (for affirmations via arrayUnion)
+      // But status cannot be changed client-side (only Cloud Function can complete)
+      allow update: if request.auth != null
+                    && request.resource.data.status == resource.data.status
+                    && request.resource.data.ownerId == resource.data.ownerId;
+
+      // Only Cloud Functions (admin SDK) can delete
+      allow delete: if false;
+    }
   }
 }
