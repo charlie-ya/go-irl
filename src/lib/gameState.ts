@@ -64,6 +64,7 @@ export interface Offer {
     amount: number; // offer amount in coins
     status: 'pending' | 'accepted' | 'rejected';
     createdAt: number;
+    mapImage?: string; // base64 JPEG screenshot captured at offer time
 }
 
 export { type Territory };
@@ -723,7 +724,7 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
     };
 
     // --- Make Offer Function ---
-    const makeOffer = async (tileKey: string, amount: number) => {
+    const makeOffer = async (tileKey: string, amount: number, mapScreenshot?: string) => {
         const user = auth.currentUser;
         if (!user || !player) return;
 
@@ -769,7 +770,8 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                 buyerId: user.uid,
                 amount,
                 status: 'pending',
-                createdAt: Date.now()
+                createdAt: Date.now(),
+                ...(mapScreenshot ? { mapImage: mapScreenshot } : {})
             };
 
             await setDoc(offerRef, offer);

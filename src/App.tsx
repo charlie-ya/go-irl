@@ -16,7 +16,8 @@ import { ReferralPanel } from './components/ReferralPanel';
 import { LeaderboardPanel } from './components/LeaderboardPanel';
 import { useGeolocation, isAndroidDevModeEnabled } from './lib/useGeolocation';
 import { useGameState } from './lib/gameState';
-import { getGridKey, parseGridKey } from './lib/gridSystem';
+import { getGridKey, parseGridKey, getGridFloats } from './lib/gridSystem';
+import { captureOfferScreenshot } from './lib/offerMapCapture';
 import { useOffers, useMyOutgoingOffers } from './lib/useOffers';
 import { useBlockLeaderboard } from './lib/useBlockLeaderboard';
 import { useExclusionZones } from './lib/useExclusionZones';
@@ -42,6 +43,7 @@ function App() {
   const [showReferralPanel, setShowReferralPanel] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [selectionOffset, setSelectionOffset] = useState({ latOffset: 0, lngOffset: 0 });
+  const [hasSeenOffersAlert, setHasSeenOffersAlert] = useState(false);
   const mapInstanceRef = useRef<mapboxgl.Map | null>(null);
 
   // Global Auth & Native Init Listener
@@ -180,16 +182,17 @@ function App() {
         </button>
       </div>
 
-      {/* Pending Offers Warning Banner */}
-      {pendingOffers.length > 0 && (
-        <div className="absolute top-16 left-4 right-4 z-[2000] flex justify-center pointer-events-none">
+      {/* Pending Offers Reminder (once per session) */}
+      {pendingOffers.length > 0 && !hasSeenOffersAlert && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[2500] flex items-center justify-center p-6"
+             onClick={() => setHasSeenOffersAlert(true)}>
           <button 
-            onClick={() => setShowOffersInbox(true)}
-            className="pointer-events-auto bg-amber-500/90 hover:bg-amber-500 text-white text-sm sm:text-base font-bold px-4 py-2.5 rounded-xl shadow-lg border border-amber-400/50 backdrop-blur-md transition-all flex items-center gap-2 max-w-lg text-center leading-tight animate-in slide-in-from-top-4"
+            onClick={(e) => { e.stopPropagation(); setHasSeenOffersAlert(true); setShowOffersInbox(true); }}
+            className="bg-amber-500/90 hover:bg-amber-500 text-white text-base font-bold px-6 py-5 rounded-2xl shadow-2xl border border-amber-400/50 backdrop-blur-md transition-all flex items-center gap-3 max-w-md text-center leading-snug animate-in slide-in-from-bottom-4"
           >
-            <Bell className="w-5 h-5 flex-shrink-0 animate-[wiggle_1s_ease-in-out_infinite]" />
+            <Bell className="w-6 h-6 flex-shrink-0 animate-[wiggle_1s_ease-in-out_infinite]" />
             <span>
-              You have {pendingOffers.length} unanswered offer{pendingOffers.length === 1 ? '' : 's'}. Accept or reject new offers within 5 days, or you will forfeit the square for half price!
+              You have {pendingOffers.length} unanswered offer{pendingOffers.length === 1 ? '' : 's'}. Accept or reject within 5 days, or you will forfeit the square for half price!
             </span>
           </button>
         </div>
@@ -276,7 +279,18 @@ function App() {
           }
           return result;
         }}
-        onMakeOffer={makeOffer}
+        onMakeOffer={async (key, amount) => {
+          let screenshot: string | undefined;
+          try {
+            if (mapInstanceRef.current) {
+              const { lat: tileLat, lng: tileLng } = getGridFloats(key);
+              screenshot = await captureOfferScreenshot(mapInstanceRef.current, tileLat, tileLng);
+            }
+          } catch (e) {
+            console.warn('[OfferCapture] Screenshot failed, proceeding without:', e);
+          }
+          makeOffer(key, amount, screenshot);
+        }}
         userBalance={player.balance}
         onGetCoins={() => setShowGetCoinsModal(true)}
 

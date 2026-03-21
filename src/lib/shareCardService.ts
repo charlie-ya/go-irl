@@ -76,7 +76,7 @@ export async function captureShareCard(
     ctx.textAlign = 'left'; // Reset
 
     // 6. Draw capture count badge (top-left)
-    const badgeText = `${options.capturedSquareCount} squares captured`;
+    const badgeText = `${options.capturedSquareCount} square${options.capturedSquareCount === 1 ? '' : 's'} captured`;
     ctx.font = `bold ${smallFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
     const badgeWidth = ctx.measureText(badgeText).width + 24;
     const badgeHeight = smallFontSize + 14;
@@ -119,7 +119,7 @@ export async function shareCard(
 ): Promise<void> {
     const referralCode = generateReferralCode(playerId);
     const referralUrl = `${APP_URL}/?ref=${referralCode}`;
-    const shareText = `I just captured ${capturedSquareCount} squares in Roamin' Empire! 🏛️ Come explore with me: ${referralUrl}`;
+    const shareText = `I just captured ${capturedSquareCount} square${capturedSquareCount === 1 ? '' : 's'} in Roamin' Empire! 🏛️ Come explore with me: ${referralUrl}`;
 
     // Convert blob to base64 data URI for Capacitor Share
     const toBase64 = (): Promise<string> => new Promise((resolve) => {

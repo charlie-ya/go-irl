@@ -1,11 +1,6 @@
 import { X, CheckCircle, XCircle, Handshake, MapPin } from 'lucide-react';
 import type { Offer } from '../lib/gameState';
-import { getGridFloats, getGridSquareBounds } from '../lib/gridSystem';
-import Map, { Marker, Source, Layer } from 'react-map-gl/mapbox';
-import 'mapbox-gl/dist/mapbox-gl.css';
-import { NOLLI_MAP_STYLE } from '../lib/mapStyle';
-
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+import { getGridFloats } from '../lib/gridSystem';
 
 interface OffersInboxProps {
     isOpen: boolean;
@@ -27,62 +22,26 @@ function formatTime(ts: number): string {
     return `${Math.floor(hrs / 24)}d ago`;
 }
 
-// Subcomponent for the mini-map to keep the main list clean
-function OfferMiniMap({ tileKey }: { tileKey: string }) {
-    const { lat, lng } = getGridFloats(tileKey);
-    const bounds = getGridSquareBounds(tileKey);
-    const coords = bounds.map(coord => [coord[1], coord[0]]);
-    coords.push(coords[0]);
+// Static offer map preview — uses cached screenshot or coordinate fallback
+function OfferMapPreview({ offer }: { offer: Offer }) {
+    if (offer.mapImage) {
+        return (
+            <div className="w-full h-32 rounded-lg overflow-hidden border border-white/10 my-3">
+                <img
+                    src={offer.mapImage}
+                    alt="Offer location"
+                    className="w-full h-full object-cover"
+                />
+            </div>
+        );
+    }
 
-    const highlightGeoJSON = {
-        type: 'FeatureCollection',
-        features: [{
-            type: 'Feature',
-            geometry: {
-                type: 'Polygon',
-                coordinates: [coords]
-            },
-            properties: {}
-        }]
-    };
-
+    // Legacy fallback for offers created before screenshot caching
+    const { lat, lng } = getGridFloats(offer.tileKey);
     return (
-        <div className="w-full h-32 rounded-lg overflow-hidden border border-white/10 relative my-3 pointer-events-none">
-            <Map
-                initialViewState={{
-                    latitude: lat,
-                    longitude: lng,
-                    zoom: 16.5,
-                    bearing: 0,
-                    pitch: 0
-                }}
-                interactive={false}
-                mapStyle={NOLLI_MAP_STYLE}
-                mapboxAccessToken={MAPBOX_TOKEN}
-            >
-                <Source id={`tile-highlight-${tileKey}`} type="geojson" data={highlightGeoJSON as any}>
-                    <Layer
-                        id={`tile-fill-${tileKey}`}
-                        type="fill"
-                        paint={{
-                            'fill-color': '#fbbf24', // Amber-400 to match warning concepts
-                            'fill-opacity': 0.4
-                        }}
-                    />
-                    <Layer
-                        id={`tile-outline-${tileKey}`}
-                        type="line"
-                        paint={{
-                            'line-color': '#fbbf24',
-                            'line-width': 2,
-                            'line-opacity': 0.8
-                        }}
-                    />
-                </Source>
-                <Marker longitude={lng} latitude={lat}>
-                    <MapPin className="w-6 h-6 text-red-500 drop-shadow-md -mt-6" />
-                </Marker>
-            </Map>
+        <div className="w-full h-16 rounded-lg overflow-hidden border border-white/10 my-3 bg-slate-900/60 flex items-center justify-center gap-2 text-slate-400">
+            <MapPin className="w-4 h-4" />
+            <span className="text-xs font-mono">{lat.toFixed(4)}, {lng.toFixed(4)}</span>
         </div>
     );
 }
@@ -132,7 +91,7 @@ export function OffersInbox({ isOpen, onClose, offers, onAccept, onReject, buyer
                                     </div>
                                 </div>
                                 
-                                <OfferMiniMap tileKey={offer.tileKey} />
+                                <OfferMapPreview offer={offer} />
 
                                 <div className="flex gap-2 mt-3">
                                     <button

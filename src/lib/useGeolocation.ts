@@ -6,6 +6,18 @@ import {
     type PositionRecord
 } from './speedDetection';
 
+// ── GPS Refresh Tuning ──────────────────────────────────────
+// Minimum distance (meters) the device must move before the
+// position update is accepted.  Lower = more responsive dot,
+// but more re-renders and battery drain from GPS jitter.
+export const GPS_MIN_DISTANCE_METERS = 3;
+
+// Maximum age (ms) of a cached GPS position that the browser
+// is allowed to reuse.  Higher = less battery usage but the
+// blue dot can lag behind the player's real position.
+export const GPS_MAX_CACHE_AGE_MS = 7000;
+// ────────────────────────────────────────────────────────────
+
 interface LocationState {
     lat: number | null;
     lng: number | null;
@@ -99,7 +111,7 @@ export function useGeolocation() {
                         newLat,
                         newLng
                     );
-                    if (dist < 5) return; // Skip update
+                    if (dist < GPS_MIN_DISTANCE_METERS) return; // Skip update
                 }
 
                 lastProcessedPos.current = { lat: newLat, lng: newLng };
@@ -140,7 +152,7 @@ export function useGeolocation() {
             {
                 enableHighAccuracy: true, // Still need high accuracy for gameplay
                 timeout: 10000,           // 10s timeout (was 20s) - fail faster
-                maximumAge: 10000,        // Accept 10s old cached position (was 5s) - major battery saver
+                maximumAge: GPS_MAX_CACHE_AGE_MS,  // Accept cached position up to this age — major battery saver
             }
         );
 
