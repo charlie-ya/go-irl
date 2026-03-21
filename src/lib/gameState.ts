@@ -45,6 +45,7 @@ export interface PlayerState {
     officialBird?: string;
     isDevMode?: boolean;
     referralCode?: string;
+    fcmTokens?: string[];       // Firebase Cloud Messaging tokens for push notifications
 }
 
 export interface PromotionCeremony {

@@ -12,12 +12,14 @@ import { OffersInbox } from './components/OffersInbox';
 import { CaptureCelebration } from './components/CaptureCelebration';
 import { GetCoinsModal } from './components/GetCoinsModal';
 import { CoinShop } from './components/CoinShop';
+import { NotificationOptInPrompt } from './components/NotificationOptInPrompt';
 import { ReferralPanel } from './components/ReferralPanel';
 import { LeaderboardPanel } from './components/LeaderboardPanel';
 import { useGeolocation, isAndroidDevModeEnabled } from './lib/useGeolocation';
 import { useGameState } from './lib/gameState';
 import { getGridKey, parseGridKey, getGridFloats } from './lib/gridSystem';
 import { captureOfferScreenshot } from './lib/offerMapCapture';
+import { usePushNotifications } from './lib/usePushNotifications';
 import { useOffers, useMyOutgoingOffers } from './lib/useOffers';
 import { useBlockLeaderboard } from './lib/useBlockLeaderboard';
 import { useExclusionZones } from './lib/useExclusionZones';
@@ -44,6 +46,8 @@ function App() {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [selectionOffset, setSelectionOffset] = useState({ latOffset: 0, lngOffset: 0 });
   const [hasSeenOffersAlert, setHasSeenOffersAlert] = useState(false);
+  const [hasSeenPushPrompt, setHasSeenPushPrompt] = useState(() => localStorage.getItem('hasSeenPushPrompt') === 'true');
+  const { isSupported, requestPermissionAndRegister } = usePushNotifications();
   const mapInstanceRef = useRef<mapboxgl.Map | null>(null);
 
   // Global Auth & Native Init Listener
@@ -206,6 +210,20 @@ function App() {
         onAccept={async (id) => { await acceptOffer(id); }}
         onReject={async (id) => { await rejectOffer(id); }}
         buyerNames={buyerNames}
+      />
+
+      {/* Push Notification Opt-In Prompt */}
+      <NotificationOptInPrompt
+        isOpen={pendingOffers.length > 0 && !hasSeenPushPrompt && isSupported}
+        onAccept={async () => {
+          setHasSeenPushPrompt(true);
+          localStorage.setItem('hasSeenPushPrompt', 'true');
+          await requestPermissionAndRegister();
+        }}
+        onDismiss={() => {
+          setHasSeenPushPrompt(true);
+          localStorage.setItem('hasSeenPushPrompt', 'true');
+        }}
       />
 
       {/* Leaderboard Panel */}
