@@ -36,7 +36,7 @@ interface ControlsProps {
 
     myId: string;
     myColor: string;
-    claims: Record<string, { ownerId: string; color: string; capturedBy?: string }>;
+    claims: Record<string, { ownerId: string; color: string; status?: string }>;
     myOutgoingOffers: Offer[];
 }
 
@@ -53,8 +53,9 @@ export function Controls({
     const [showAscendDialog, setShowAscendDialog] = useState(false);
 
     const isOwnedByMe = tile && tile.ownerId === myId;
-    const isOwnedByOther = tile && tile.ownerId !== myId;
-    const isCapturedByOther = tile?.capturedBy && tile.capturedBy !== myId;
+    // For claiming mechanics, a moribund square acts as if it is unowned
+    const isOwnedByOther = tile && tile.ownerId !== myId && tile.status !== 'moribund';
+    const isCapturedByOther = tile?.status === 'captured' && tile.ownerId !== myId;
     const myPendingOffer = myOutgoingOffers.find(o => o.tileKey === activeKey);
 
     // Check if there is an active ceremony here

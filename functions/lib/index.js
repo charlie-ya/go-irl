@@ -209,4 +209,5 @@ exports.getNeighborhoodLeaderboard = functions.https.onCall(async (request) => {
 __exportStar(require("./unansweredOffers"), exports);
 __exportStar(require("./ceremony"), exports);
 __exportStar(require("./notifications"), exports);
+__exportStar(require("./playerActivity"), exports);
 //# sourceMappingURL=index.js.map

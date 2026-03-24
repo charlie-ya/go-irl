@@ -25,7 +25,7 @@ export function useBlockLeaderboard(
         }>();
 
         for (const tile of Object.values(claims)) {
-            if (!tile.ownerId) continue; // skip virtual captured-only entries
+            if (!tile.ownerId || tile.status === 'captured' || tile.status === 'moribund') continue; // skip captured or moribund entries
 
             const existing = ownerMap.get(tile.ownerId);
             if (existing) {

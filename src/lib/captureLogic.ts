@@ -34,7 +34,7 @@ export function getOrthogonalNeighbors(gridKey: GridKey): GridKey[] {
  */
 function floodFill(
     startKey: GridKey,
-    claims: Record<string, { ownerId: string; capturedBy?: string }>,
+    claims: Record<string, { ownerId: string; status?: string }>,
     boundaryOwnerId: string,
     visited: Set<string>,
     maxIterations: number = 1000
@@ -60,7 +60,7 @@ function floodFill(
         }
 
         // Check if this square is already captured by someone (permanent capture wall)
-        if (tile && tile.capturedBy) {
+        if (tile && tile.status === 'captured') {
             continue;
         }
 
@@ -107,7 +107,7 @@ function floodFill(
  * Returns array of territories (perimeter + enclosed squares)
  */
 export function findEnclosedAreas(
-    claims: Record<string, { ownerId: string; explorerName: string; color: string; capturedBy?: string }>,
+    claims: Record<string, { ownerId: string; explorerName: string; color: string; status?: string }>,
     playerId: string
 ): Array<{ perimeterSquares: string[]; enclosedSquares: string[] }> {
     const territories: Array<{ perimeterSquares: string[]; enclosedSquares: string[] }> = [];

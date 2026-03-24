@@ -79,7 +79,7 @@ function App() {
 
   const userLocation = useGeolocation();
   const {
-    claims, player, territories,
+    claims, player,
     claimSquare, makeOffer, acceptOffer, rejectOffer,
     createPlayer, updatePlayerProfile,
     affirmPromotion, completePromotion, activeCeremony, startPromotionCeremony
@@ -257,7 +257,6 @@ function App() {
         lng={userLocation.lng}
         selectedGridKey={selectedGridKey}
         claims={claims}
-        territories={territories}
         exclusionZones={zones}
         onMapReady={(m) => { mapInstanceRef.current = m; }}
       />

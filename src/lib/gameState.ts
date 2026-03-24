@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { db, auth } from './firebase';
 import { collection, doc, onSnapshot, setDoc, updateDoc, increment, getDocs, deleteDoc, query, where, getCountFromServer, runTransaction, writeBatch, arrayUnion, serverTimestamp } from 'firebase/firestore';
 
@@ -24,7 +24,7 @@ export interface Tile {
     officialFlower?: string;
     officialBird?: string;
     ownerRank?: string;
-    capturedBy?: string;    // Player ID who captured this tile via enclosure
+    status?: 'captured' | 'moribund'; // Undefined implies normal claimed tile
 }
 
 export type GameState = Record<string, Tile>;
@@ -46,6 +46,8 @@ export interface PlayerState {
     isDevMode?: boolean;
     referralCode?: string;
     fcmTokens?: string[];       // Firebase Cloud Messaging tokens for push notifications
+    unansweredForfeitCount?: number; // Tracks unanswered offers
+    isInactive?: boolean;            // True if 3+ unanswered offers
 }
 
 export interface PromotionCeremony {
@@ -282,34 +284,19 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
         return () => unsub();
     }, [auth.currentUser]);
 
-    // Derive capturedBy from territory data (client-side only, no Firestore writes)
-    const enrichedClaims = useMemo(() => {
-        const result: GameState = { ...claims };
-        for (const territory of territories) {
-            if (!territory.isActive) continue;
-            for (const enclosedKey of territory.enclosedSquares) {
-                if (result[enclosedKey]) {
-                    // Tile exists — add capturedBy
-                    result[enclosedKey] = { ...result[enclosedKey], capturedBy: territory.ownerId };
-                } else {
-                    // Enclosed tile with no claim doc — create a virtual entry
-                    // Use the territory owner's color so it renders as a
-                    // transparent version of their chosen color on the map
-                    result[enclosedKey] = {
-                        ownerId: '',
-                        explorerName: territory.explorerName || '',
-                        color: territory.color || '',
-                        timestamp: 0,
-                        geohash: '',
-                        latInt: 0,
-                        lngInt: 0,
-                        capturedBy: territory.ownerId,
-                    };
-                }
-            }
+    // Enriched claims logic removed because captured territories are now explicit tiles.
+
+    const triggerRejuvenationIfInactive = () => {
+        if (!auth.currentUser || !player) return;
+        if (player.isInactive || (player.unansweredForfeitCount ?? 0) > 0) {
+            updateDoc(doc(db, "players", auth.currentUser.uid), {
+                isInactive: false,
+                unansweredForfeitCount: 0
+            }).catch(e => console.error("Failed to rejuvenate player:", e));
+            // Optimistically update
+            setPlayer(p => p ? { ...p, isInactive: false, unansweredForfeitCount: 0 } : null);
         }
-        return result;
-    }, [claims, territories]);
+    };
 
     const claimSquare = async (gridKey: string): Promise<{ bonus: number; capturedCount: number }> => {
         if (!player || !auth.currentUser) return { bonus: 0, capturedCount: 0 };
@@ -318,14 +305,14 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
             return { bonus: 0, capturedCount: 0 };
         }
 
-        // Check if already owned by someone else
-        if (claims[gridKey] && claims[gridKey].ownerId !== player.id) {
+        // Check if already owned by someone else (Moribund squares CAN be claimed)
+        if (claims[gridKey] && claims[gridKey].ownerId !== player.id && claims[gridKey].status !== 'moribund') {
             alert(`This square is already owned by ${claims[gridKey].explorerName}!`);
             return { bonus: 0, capturedCount: 0 };
         }
 
         // Check if tile is captured by another player (permanent capture protection)
-        if (enrichedClaims[gridKey]?.capturedBy && enrichedClaims[gridKey].capturedBy !== player.id) {
+        if (claims[gridKey]?.status === 'captured' && claims[gridKey].ownerId !== player.id) {
             alert(`This area is captured territory belonging to another explorer!`);
             return { bonus: 0, capturedCount: 0 };
         }
@@ -481,7 +468,10 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                 transaction.update(playerRef, playerUpdates);
             });
 
-            // Post-transaction: Write ONLY new territories (no delete step!)
+            // Post-transaction: Write new territories and batch write the enclosed tiles
+            let currentBatch = writeBatch(db);
+            let operationCount = 0;
+
             for (const area of newTerritories) {
                 const territoryId = `${player.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
                 const territory: Territory = {
@@ -494,10 +484,58 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                     capturedAt: Date.now(),
                     isActive: true
                 };
-                await setDoc(doc(db, "captured", territoryId), territory);
+                
+                if (operationCount >= 490) {
+                    await currentBatch.commit();
+                    currentBatch = writeBatch(db);
+                    operationCount = 0;
+                }
+                currentBatch.set(doc(db, "captured", territoryId), territory);
+                operationCount++;
+
+                // Write each enclosed square to tiles collection globally
+                for (const squareKey of area.enclosedSquares) {
+                    // Skip squares that are already claimed or captured (unless they are moribund)
+                    if (claims[squareKey] && claims[squareKey].status !== 'moribund') {
+                        continue;
+                    }
+
+                    if (operationCount >= 490) {
+                        await currentBatch.commit();
+                        currentBatch = writeBatch(db);
+                        operationCount = 0;
+                    }
+                    
+                    const { latInt: sqLatInt, lngInt: sqLngInt } = parseGridKey(squareKey);
+                    const { lat: sqLat, lng: sqLng } = getGridFloats(squareKey);
+                    
+                    const capturedTile: Tile = {
+                        ownerId: player.id,
+                        explorerName: player.explorerName || 'Anonymous',
+                        color: player.color || '#808080',
+                        timestamp: Date.now(),
+                        geohash: getGeohash(sqLat, sqLng),
+                        latInt: sqLatInt,
+                        lngInt: sqLngInt,
+                        officialFlower: player.officialFlower || 'Dandelion',
+                        officialBird: player.officialBird || 'Pigeon',
+                        ownerRank: player.rank || 'Vassal',
+                        status: 'captured'
+                    };
+                    
+                    currentBatch.set(doc(db, "tiles", squareKey), capturedTile);
+                    operationCount++;
+                    
+                    // Also update Local TileStorage
+                    await TileStorage.addTile(squareKey, capturedTile);
+                }
             }
 
-            // Update Local TileStorage
+            if (operationCount > 0) {
+                await currentBatch.commit();
+            }
+
+            // Update Local TileStorage with the primary claimed tile
             await TileStorage.addTile(gridKey, newTile);
 
             // UPDATE LOCALLY for next check
@@ -514,6 +552,9 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
             checkAndAwardReferralMilestones(player.id).catch(e =>
                 console.error('[Referral] Milestone check failed:', e)
             );
+
+            // Rejuvenation on activity
+            triggerRejuvenationIfInactive();
 
             return { bonus: captureBonus, capturedCount: newCapturedTileCount };
 
@@ -605,6 +646,9 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                 ...prev,
                 totalClaims: (prev.totalClaims || 0) + 1
             }) : null);
+
+            // Rejuvenation on activity
+            triggerRejuvenationIfInactive();
 
         } catch (e: any) {
             console.error("Buy failed", e);
@@ -740,6 +784,11 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
             return;
         }
 
+        if (tile.status === 'captured') {
+            alert("Territory enclosed squares cannot be bought.");
+            return;
+        }
+
         if (amount > player.balance) {
             alert(`You only have ${player.balance} coins`);
             return;
@@ -777,6 +826,9 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
 
             await setDoc(offerRef, offer);
             alert(`Offer of ${amount} coins sent to ${tile.explorerName}! 🤝`);
+
+            // Rejuvenation on activity
+            triggerRejuvenationIfInactive();
         } catch (e: any) {
             console.error("Failed to make offer", e);
             alert(`Failed to make offer: ${e.message}`);
@@ -864,8 +916,27 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                     if (territory.perimeterSquares.includes(tileKey)) {
                         console.log(`[Territory Invalidation] Perimeter tile ${tileKey} sold — collapsing territory ${territoryDoc.id} (${territory.enclosedSquares.length} tiles released)`);
 
-                        // Delete territory doc (capturedBy is derived client-side, no tile cleanup needed)
+                        // Delete territory doc
                         await deleteDoc(territoryDoc.ref);
+                        
+                        // Batch delete all enclosed squares from tiles collection
+                        let currentBatch = writeBatch(db);
+                        let operationCount = 0;
+                        
+                        for (const enclosedKey of territory.enclosedSquares) {
+                            if (operationCount >= 490) {
+                                await currentBatch.commit();
+                                currentBatch = writeBatch(db);
+                                operationCount = 0;
+                            }
+                            currentBatch.delete(doc(db, "tiles", enclosedKey));
+                            operationCount++;
+                            TileStorage.removeTile?.(enclosedKey);
+                        }
+                        
+                        if (operationCount > 0) {
+                            await currentBatch.commit();
+                        }
 
                         // Decrement totalCaptured
                         await updateDoc(doc(db, "players", user.uid), {
@@ -1029,7 +1100,7 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
     };
 
     return {
-        claims: enrichedClaims,
+        claims,
         player,
         territories,
         claimSquare,

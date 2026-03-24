@@ -4,11 +4,9 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { getGridKey, getGridSquareBounds } from '../lib/gridSystem';
 import { abbreviateUsername } from '../lib/stringUtils';
 import { NOLLI_MAP_STYLE } from '../lib/mapStyle';
-import { TerritoryRenderer } from './TerritoryRenderer';
 import { registerNolliPatterns } from '../lib/nolliPatterns';
 
 import { getExclusionZonesGeoJSON, type ExclusionZone } from '../lib/exclusionZones';
-import type { Territory } from '../lib/gameState';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
@@ -17,13 +15,12 @@ interface MapBoardProps {
     lat: number | null;
     lng: number | null;
     selectedGridKey?: string | null;
-    claims: Record<string, { color: string; explorerName: string }>;
-    territories: Territory[];
+    claims: Record<string, { color: string; explorerName: string; status?: string }>;
     exclusionZones: ExclusionZone[];
     onMapReady?: (map: mapboxgl.Map) => void;
 }
 
-export function MapBoard({ lat, lng, selectedGridKey, claims, territories, exclusionZones, onMapReady }: MapBoardProps) {
+export function MapBoard({ lat, lng, selectedGridKey, claims, exclusionZones, onMapReady }: MapBoardProps) {
     const mapRef = useRef<any>(null);
 
     // Initial View State — only computed once GPS coords are valid
@@ -84,7 +81,8 @@ export function MapBoard({ lat, lng, selectedGridKey, claims, territories, exclu
                 properties: {
                     key,
                     color: tile.color,
-                    explorerName: abbreviateUsername(tile.explorerName)
+                    explorerName: abbreviateUsername(tile.explorerName),
+                    status: tile.status || 'claimed'
                 }
             };
         });
@@ -216,7 +214,13 @@ export function MapBoard({ lat, lng, selectedGridKey, claims, territories, exclu
                     type="fill"
                     paint={{
                         'fill-color': ['get', 'color'],
-                        'fill-opacity': 0.5
+                        'fill-opacity': [
+                            'match',
+                            ['get', 'status'],
+                            'moribund', 0.15,
+                            'captured', 0.3,
+                            0.5
+                        ]
                     }}
                 />
                 <Layer
@@ -266,19 +270,30 @@ export function MapBoard({ lat, lng, selectedGridKey, claims, territories, exclu
 
             {/* Selected Grid Highlight */}
             <Source id="selected-grid-source" type="geojson" data={selectedGridGeoJSON as any}>
+                {/* Base Dark Gray Line */}
                 <Layer
-                    id="selected-grid-line"
+                    id="selected-grid-line-base"
                     type="line"
                     paint={{
-                        'line-color': '#ffffff',
-                        'line-width': 3,
+                        'line-color': '#334155', // slate-700
+                        'line-width': 3.5,
                         'line-opacity': 0.9
+                    }}
+                />
+                {/* Creamy Yellow Dashes */}
+                <Layer
+                    id="selected-grid-line-dash"
+                    type="line"
+                    paint={{
+                        'line-color': '#FEF08A', // yellow-200 (creamy yellow)
+                        'line-width': 3.5,
+                        'line-dasharray': [3, 3],
+                        'line-opacity': 1
                     }}
                 />
             </Source>
 
-            {/* Territories */}
-            <TerritoryRenderer territories={territories} />
+
 
             {/* User Marker — lat/lng are guaranteed non-null here */}
             <Marker longitude={lng!} latitude={lat!} anchor="center">

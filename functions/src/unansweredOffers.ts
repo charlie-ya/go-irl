@@ -90,6 +90,13 @@ export const enactUnansweredOffers = functions.pubsub.schedule("every 1 hours").
                     timestamp: admin.firestore.FieldValue.serverTimestamp(),
                 });
 
+                const sellerSnap = await transaction.get(sellerRef);
+                const seller = sellerSnap.data();
+                
+                // Track forfeiture inactivity
+                const newForfeitCount = (seller?.unansweredForfeitCount || 0) + 1;
+                const becomesInactive = newForfeitCount >= 3 && !seller?.isInactive;
+
                 // 2. Adjust Balances
                 transaction.update(buyerRef, {
                     balance: admin.firestore.FieldValue.increment(-halvedAmount),
@@ -98,7 +105,9 @@ export const enactUnansweredOffers = functions.pubsub.schedule("every 1 hours").
                 
                 transaction.update(sellerRef, {
                     balance: admin.firestore.FieldValue.increment(halvedAmount),
-                    totalClaims: admin.firestore.FieldValue.increment(-1)
+                    totalClaims: admin.firestore.FieldValue.increment(-1),
+                    unansweredForfeitCount: admin.firestore.FieldValue.increment(1),
+                    ...(becomesInactive ? { isInactive: true } : {})
                 });
 
                 // 3. Delete the enacted offer
