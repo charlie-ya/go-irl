@@ -1,21 +1,19 @@
 import { useState } from 'react';
 import { X, Users } from 'lucide-react';
-import { OFFICIAL_BIRDS, OFFICIAL_FLOWERS } from '../lib/constants';
 import { ReferralPanel } from './ReferralPanel';
+import { ColorPicker } from './ColorPicker';
 
 interface ProfileEditorProps {
     currentName: string;
-    currentFlower?: string;
-    currentBird?: string;
+    currentColor: string;
     playerId: string;
-    onSave: (explorerName: string, officialFlower: string, officialBird: string) => void;
+    onSave: (explorerName: string, color: string) => void;
     onClose: () => void;
 }
 
-export function ProfileEditor({ currentName, currentFlower, currentBird, playerId, onSave, onClose }: ProfileEditorProps) {
+export function ProfileEditor({ currentName, currentColor, playerId, onSave, onClose }: ProfileEditorProps) {
     const [explorerName, setExplorerName] = useState(currentName);
-    const [flower, setFlower] = useState(currentFlower || OFFICIAL_FLOWERS[0]);
-    const [bird, setBird] = useState(currentBird || OFFICIAL_BIRDS[0]);
+    const [color, setColor] = useState(currentColor || '#FF1744');
     const [error, setError] = useState('');
     const [showReferrals, setShowReferrals] = useState(false);
 
@@ -40,14 +38,12 @@ export function ProfileEditor({ currentName, currentFlower, currentBird, playerI
         if (!validateName(explorerName)) return;
 
         // Check if anything changed
-        if (explorerName === currentName &&
-            flower === currentFlower &&
-            bird === currentBird) {
+        if (explorerName === currentName && color === currentColor) {
             onClose();
             return;
         }
 
-        onSave(explorerName, flower, bird);
+        onSave(explorerName, color);
     };
 
     return (
@@ -88,40 +84,14 @@ export function ProfileEditor({ currentName, currentFlower, currentBird, playerI
                     </div>
                 </div>
 
-                {/* Official Flower */}
-                <div className="space-y-2">
-                    <label className="text-slate-300 font-semibold">Official Flower</label>
-                    <select
-                        value={flower}
-                        onChange={(e) => setFlower(e.target.value)}
-                        className="w-full px-4 py-3 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none appearance-none"
-                    >
-                        {OFFICIAL_FLOWERS.map(f => (
-                            <option key={f} value={f}>{f}</option>
-                        ))}
-                    </select>
-                </div>
-
-                {/* Official Bird */}
-                <div className="space-y-2">
-                    <label className="text-slate-300 font-semibold">Official Bird</label>
-                    <select
-                        value={bird}
-                        onChange={(e) => setBird(e.target.value)}
-                        className="w-full px-4 py-3 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none appearance-none"
-                    >
-                        {OFFICIAL_BIRDS.map(b => (
-                            <option key={b} value={b}>{b}</option>
-                        ))}
-                    </select>
-                </div>
-
-                {/* Preview */}
-                <div className="bg-slate-700 rounded-lg p-4 space-y-2 border border-slate-600">
-                    <p className="text-slate-300 text-sm text-center">Protocol Preview:</p>
-                    <div className="prose prose-invert text-sm text-center italic text-slate-300">
-                        "The <span className="text-yellow-400 not-italic">{flower}</span> blooms in <span className="text-white not-italic font-bold">{explorerName}</span>'s land,
-                        while the <span className="text-blue-400 not-italic">{bird}</span> sings."
+                {/* Tile Color Picker */}
+                <div className="space-y-4">
+                    <label className="text-slate-300 font-semibold block mb-2">Tile Map Color</label>
+                    <div className="bg-slate-700/50 p-4 rounded-xl border border-slate-600/50">
+                        <ColorPicker 
+                            selectedColor={color} 
+                            onColorChange={(c) => setColor(c)} 
+                        />
                     </div>
                 </div>
 

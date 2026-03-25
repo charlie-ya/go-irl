@@ -5,7 +5,6 @@ import { Controls } from './components/Controls';
 import { Login } from './components/Login';
 import { Onboarding } from './components/Onboarding';
 import { ProfileEditor } from './components/ProfileEditor';
-import { StatsPanel } from './components/StatsPanel';
 import { ScrollingChyron } from './components/ScrollingChyron';
 import { SafetyWarning } from './components/SafetyWarning';
 import { OffersInbox } from './components/OffersInbox';
@@ -15,6 +14,7 @@ import { CoinShop } from './components/CoinShop';
 import { NotificationOptInPrompt } from './components/NotificationOptInPrompt';
 import { ReferralPanel } from './components/ReferralPanel';
 import { LeaderboardPanel } from './components/LeaderboardPanel';
+import { ProfileStatsPanel } from './components/ProfileStatsPanel';
 import { useGeolocation, isAndroidDevModeEnabled } from './lib/useGeolocation';
 import { useGameState } from './lib/gameState';
 import { getGridKey, parseGridKey, getGridFloats } from './lib/gridSystem';
@@ -30,7 +30,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from './lib/firebase';
 import { TextZoom } from '@capacitor/text-zoom';
 import { Capacitor } from '@capacitor/core';
-import { LogOut, Settings, Bell, Trophy } from 'lucide-react';
+import { Bell } from 'lucide-react';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -41,6 +41,7 @@ function App() {
   const [captureBonusAmount, setCaptureBonusAmount] = useState(0);
   const [capturedSquareCount, setCapturedSquareCount] = useState(0);
   const [showGetCoinsModal, setShowGetCoinsModal] = useState(false);
+  const [showAscendDialog, setShowAscendDialog] = useState(false);
   const [showCoinShop, setShowCoinShop] = useState(false);
   const [showReferralPanel, setShowReferralPanel] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
@@ -139,6 +140,13 @@ function App() {
     setSelectionOffset({ latOffset: 0, lngOffset: 0 });
   }, [currentGridKey]);
 
+  // Check if the current grid square is owned by the player
+  const isOwnedByMe = useMemo(() => {
+    if (!currentGridKey || !player?.id || !claims) return false;
+    const activeTile = claims[currentGridKey];
+    return activeTile?.ownerId === player.id;
+  }, [currentGridKey, player?.id, claims]);
+
   if (authLoading) return <div className="h-screen w-screen bg-slate-900 text-white flex items-center justify-center">Loading...</div>;
   if (!user) return <Login />;
   if (!player || !player.hasCompletedOnboarding) {
@@ -148,42 +156,37 @@ function App() {
   return (
     <div className="relative h-screen h-[100dvh] w-screen overflow-hidden bg-slate-900">
 
-      {/* Top Left Controls */}
-      <div className="absolute top-4 left-4 z-[2000] flex gap-2">
-        <button
-          onClick={() => logout()}
-          className="bg-slate-800 text-white p-2 rounded-full shadow-lg hover:bg-slate-700 transition-colors"
-          title="Logout"
-        >
-          <LogOut className="w-5 h-5" />
-        </button>
-        <button
-          onClick={() => setShowProfileEditor(true)}
-          className="bg-slate-800 text-white p-2 rounded-full shadow-lg hover:bg-slate-700 transition-colors"
-          title="Edit Profile"
-        >
-          <Settings className="w-5 h-5" />
-        </button>
+      {/* Top Controls: Offers & Profile/Stats Panel */}
+      <div className="absolute top-4 right-4 z-[2000] flex items-start gap-3 pointer-events-none">
+        
         {/* Offers notification badge */}
         <button
           onClick={() => setShowOffersInbox(true)}
-          className="relative bg-slate-800 text-white p-2 rounded-full shadow-lg hover:bg-slate-700 transition-colors"
+          className="relative bg-slate-800 text-white p-3 rounded-full shadow-lg hover:bg-slate-700 transition-colors border-2 border-slate-700 pointer-events-auto active:scale-95"
           title="Incoming Offers"
         >
-          <Bell className="w-5 h-5" />
+          <Bell className="w-6 h-6" />
           {pendingOffers.length > 0 && (
-            <span className="absolute -top-1 -right-1 bg-emerald-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full">
+            <span className="absolute -top-1 -right-1 bg-emerald-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-md border-2 border-slate-800">
               {pendingOffers.length}
             </span>
           )}
         </button>
-        <button
-          onClick={() => setShowLeaderboard(true)}
-          className="bg-slate-800 text-white p-2 rounded-full shadow-lg hover:bg-slate-700 transition-colors"
-          title="Leaderboard"
-        >
-          <Trophy className="w-5 h-5" />
-        </button>
+
+        <ProfileStatsPanel 
+          explorerName={player?.explorerName}
+          rank={player?.rank}
+          color={player?.color}
+          claimedCount={tilesCount || 0}
+          capturedCount={territoriesCount || 0}
+          coins={player?.balance || 0}
+          canAscend={player?.rank !== 'Centurion'}
+          onGetCoins={() => setShowGetCoinsModal(true)}
+          onEditProfile={() => setShowProfileEditor(true)}
+          onLeaderboard={() => setShowLeaderboard(true)}
+          onAscend={() => setShowAscendDialog(true)}
+          onLogout={() => logout()}
+        />
       </div>
 
       {/* Pending Offers Reminder (once per session) */}
@@ -240,12 +243,11 @@ function App() {
       {showProfileEditor && player && (
         <ProfileEditor
           currentName={player.explorerName}
-          currentFlower={player.officialFlower}
-          currentBird={player.officialBird}
+          currentColor={player.color}
           playerId={player.id}
-          onSave={(name, flower, bird) => {
+          onSave={(name, color) => {
             const isDevMode = isAndroidDevModeEnabled();
-            updatePlayerProfile(name, flower, bird, isDevMode);
+            updatePlayerProfile(name, color, isDevMode);
             setShowProfileEditor(false);
           }}
           onClose={() => setShowProfileEditor(false)}
@@ -261,15 +263,7 @@ function App() {
         onMapReady={(m) => { mapInstanceRef.current = m; }}
       />
 
-      {/* Stats Panel */}
-      <StatsPanel
-        tilesCount={tilesCount}
-        territoriesCount={territoriesCount}
-        coins={player?.balance || 0}
-        rank={player?.rank || 'Lowly Vassal'}
-        explorerName={player?.explorerName}
-        onGetCoins={() => setShowGetCoinsModal(true)}
-      />
+
 
       {/* Scrolling Chyron */}
       <ScrollingChyron
@@ -286,7 +280,6 @@ function App() {
         lng={userLocation.lng || 0}
         locationLoading={userLocation.loading}
         selectedGridKey={selectedGridKey}
-        selectionOffset={selectionOffset}
         onOffsetChange={setSelectionOffset}
         onClaim={async (key) => {
           const result = await claimSquare(key);
@@ -311,14 +304,12 @@ function App() {
         userBalance={player.balance}
         onGetCoins={() => setShowGetCoinsModal(true)}
 
-        onStartCeremony={startPromotionCeremony}
         onAffirm={affirmPromotion}
         onCompleteCeremony={completePromotion}
         activeCeremony={activeCeremony}
-        playerRank={player.rank || 'Lowly Vassal'}
-
-        myId={player.id}
-        myColor={player.color}
+        playerRank={player?.rank || 'Lowly Vassal'}
+        myId={player?.id || ''}
+        myColor={player?.color || '#3b82f6'}
         myOutgoingOffers={myOutgoingOffers}
         claims={claims}
       />
@@ -380,6 +371,57 @@ function App() {
         isOpen={showCoinShop}
         onClose={() => setShowCoinShop(false)}
       />
+
+      {/* Ascend Dialog Overlay (Global) */}
+      {showAscendDialog && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[3000] p-6 pointer-events-auto">
+            <div className="bg-slate-800/95 rounded-2xl p-6 max-w-sm w-full border border-amber-500/30 shadow-2xl">
+                <div className="text-center">
+                    <div className="text-4xl mb-3">👑</div>
+                    <h2 className="text-xl font-bold text-white mb-2">Ascend to New Rank</h2>
+                    <p className="text-slate-300 text-sm leading-relaxed mb-4">
+                        To ascend to the rank of <strong className="text-amber-400">Minion</strong>, gather <strong className="text-amber-400">9 other players</strong> on this square.
+                        Each player must affirm your promotion by tapping the AFFIRM button.
+                    </p>
+                    <p className="text-slate-400 text-xs leading-relaxed mb-6">
+                        Minions can see more surrounding territory, and can claim squares adjacent to their location.
+                    </p>
+
+                    {/* Condition to start ceremony */}
+                    {!isOwnedByMe ? (
+                         <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mb-6">
+                             <p className="text-red-400 text-sm font-semibold">📍 Stand on your territory</p>
+                             <p className="text-slate-300 text-xs mt-1">You must physically stand on one of your owned squares to begin the ceremony.</p>
+                         </div>
+                    ) : (
+                         <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3 mb-6">
+                             <p className="text-emerald-400 text-sm font-semibold">📍 You're in position!</p>
+                             <p className="text-slate-300 text-xs mt-1">You are standing on your own square and ready to ascend.</p>
+                         </div>
+                    )}
+
+                    <div className="flex flex-col gap-3">
+                        <button
+                            onClick={() => {
+                                setShowAscendDialog(false);
+                                startPromotionCeremony();
+                            }}
+                            disabled={!isOwnedByMe}
+                            className="w-full bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-500 hover:to-yellow-400 text-white py-4 rounded-xl font-black text-lg shadow-lg shadow-amber-500/30 transition-all active:scale-95 border border-yellow-300/40 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
+                        >
+                            Ascend ✨
+                        </button>
+                        <button
+                            onClick={() => setShowAscendDialog(false)}
+                            className="w-full text-slate-400 hover:text-slate-300 py-2 text-sm font-medium transition-colors"
+                        >
+                            Not Now
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
 
       {/* Referral Panel Modal */}
       {player && (

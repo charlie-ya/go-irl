@@ -21,8 +21,6 @@ export interface Tile {
     geohash: string;      // Geohash for spatial queries
     latInt: number;       // Integer latitude (matches grid key)
     lngInt: number;       // Integer longitude (matches grid key)
-    officialFlower?: string;
-    officialBird?: string;
     ownerRank?: string;
     status?: 'captured' | 'moribund'; // Undefined implies normal claimed tile
 }
@@ -41,8 +39,6 @@ export interface PlayerState {
     lastClaimLng?: number;      // Anti-Cheat
     totalClaims?: number;       // Global scoreboard count (Atomic)
     totalCaptured?: number;     // Total territories captured (Atomic)
-    officialFlower?: string;
-    officialBird?: string;
     isDevMode?: boolean;
     referralCode?: string;
     fcmTokens?: string[];       // Firebase Cloud Messaging tokens for push notifications
@@ -71,6 +67,9 @@ export interface Offer {
 }
 
 export { type Territory };
+
+// Cache for live player profile mapping against map tiles
+const playerProfileCache: Record<string, {color: string, explorerName: string}> = {};
 
 export function useGameState(userLat?: number, userLng?: number, isMovingTooFast?: boolean, activeZones: ExclusionZone[] = []) {
     const [claims, setClaims] = useState<GameState>({});
@@ -119,8 +118,10 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
         // Create listeners for each geohash
         const unsubscribers = geohashes.map(geohash => {
             const q = query(collection(db, "tiles"), where("geohash", "==", geohash));
-            return onSnapshot(q, (snapshot) => {
-                const newClaims: GameState = {};
+            return onSnapshot(q, async (snapshot) => {
+                const rawTiles: GameState = {};
+                const missingOwners = new Set<string>();
+
                 snapshot.forEach(doc => {
                     const tile = doc.data() as Tile;
                     // Filter to exact radius - convert integer coords to float
@@ -128,9 +129,56 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                     const tileLng = fromGridInt(tile.lngInt);
                     const distance = calculateDistance(userLat, userLng, tileLat, tileLng);
                     if (distance <= loadRadius) {
-                        newClaims[doc.id] = tile;
+                        rawTiles[doc.id] = tile;
+                        if (tile.ownerId && !playerProfileCache[tile.ownerId]) {
+                            missingOwners.add(tile.ownerId);
+                        }
                     }
                 });
+
+                // Batch resolve missing profile colors to avoid expensive tile rewrites
+                if (missingOwners.size > 0) {
+                    const missingArray = Array.from(missingOwners);
+                    for (let i = 0; i < missingArray.length; i += 10) {
+                        const chunk = missingArray.slice(i, i + 10);
+                        try {
+                            const pQuery = query(collection(db, "players"), where("__name__", "in", chunk));
+                            const pSnap = await getDocs(pQuery);
+                            pSnap.forEach(pDoc => {
+                                const data = pDoc.data();
+                                playerProfileCache[pDoc.id] = {
+                                    color: data.color || '#808080',
+                                    explorerName: data.explorerName || 'Anonymous'
+                                };
+                            });
+                        } catch (e) {
+                            console.error("Failed to fetch player colors:", e);
+                        }
+                    }
+                    
+                    // Prevent endless refetching for deleted or ghost players
+                    for (const id of missingArray) {
+                        if (!playerProfileCache[id]) {
+                            playerProfileCache[id] = { color: '#808080', explorerName: 'Unknown' };
+                        }
+                    }
+                }
+
+                // Overlay live colors seamlessly
+                const newClaims: GameState = {};
+                for (const [id, tile] of Object.entries(rawTiles)) {
+                    const latestProfile = playerProfileCache[tile.ownerId];
+                    if (latestProfile) {
+                        newClaims[id] = { 
+                            ...tile, 
+                            color: latestProfile.color, 
+                            explorerName: latestProfile.explorerName 
+                        };
+                    } else {
+                        newClaims[id] = tile;
+                    }
+                }
+
                 // Merge with existing to prevent flicker
                 setClaims(prev => ({ ...prev, ...newClaims }));
             });
@@ -205,14 +253,12 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                     verifyStats();
                 }
 
-                // Self-Healing: Backfill missing cosmetics & rank (Fixes "Undefined" error on legacy apps)
-                if (!data.officialFlower || !data.officialBird || !data.rank) {
+                // Self-Healing: Backfill missing rank
+                if (!data.rank) {
                     try {
                         console.log("Backfilling missing profile data...");
                         await updateDoc(playerRef, {
-                            officialFlower: data.officialFlower || 'Dandelion',
-                            officialBird: data.officialBird || 'Pigeon',
-                            rank: data.rank || 'Lowly Vassal'
+                            rank: 'Lowly Vassal'
                         });
                     } catch (e) {
                         console.error("Failed to backfill profile data", e);
@@ -371,8 +417,6 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
             geohash: getGeohash(floatLat, floatLng),
             latInt,  // Integer coordinates match grid key exactly
             lngInt,
-            officialFlower: player.officialFlower || 'Dandelion',
-            officialBird: player.officialBird || 'Pigeon',
             ownerRank: player.rank || 'Vassal',
         };
         setClaims(prev => ({ ...prev, [gridKey]: newTile }));
@@ -440,11 +484,7 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                 }
 
                 // 2. Create Tile
-                const safeTile = {
-                    ...newTile,
-                    officialFlower: newTile.officialFlower || 'Dandelion',
-                    officialBird: newTile.officialBird || 'Pigeon',
-                };
+                const safeTile = { ...newTile };
 
                 // Remove undefined keys
                 Object.keys(safeTile).forEach(key => (safeTile as any)[key] === undefined && delete (safeTile as any)[key]);
@@ -517,8 +557,6 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                         geohash: getGeohash(sqLat, sqLng),
                         latInt: sqLatInt,
                         lngInt: sqLngInt,
-                        officialFlower: player.officialFlower || 'Dandelion',
-                        officialBird: player.officialBird || 'Pigeon',
                         ownerRank: player.rank || 'Vassal',
                         status: 'captured'
                     };
@@ -605,10 +643,8 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                     color: player.color || '#808080',
                     timestamp: Date.now(),
                     geohash: getGeohash(lat, lng),
-                    lat,
-                    lng,
-                    officialFlower: player.officialFlower || 'Dandelion',
-                    officialBird: player.officialBird || 'Pigeon',
+                    latInt: parseGridKey(gridKey).latInt,
+                    lngInt: parseGridKey(gridKey).lngInt,
                     ownerRank: player.rank || 'Vassal',
                 };
 
@@ -721,8 +757,6 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
             balance: 100,
             hasCompletedOnboarding: true,
             rank: 'Lowly Vassal',
-            officialFlower: 'Dandelion',
-            officialBird: 'Pigeon',
             totalClaims: 0,
             totalCaptured: 0,
             ...(referralCode ? { referralCode } : {})
@@ -745,8 +779,7 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
 
     const updatePlayerProfile = async (
         explorerName: string,
-        officialFlower?: string,
-        officialBird?: string,
+        color: string,
         isDevMode?: boolean
     ) => {
         if (!player || !auth.currentUser) return;
@@ -755,13 +788,14 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
         const playerRef = doc(db, "players", uid);
 
         try {
-            // Update player profile only (color is immutable after creation)
             await updateDoc(playerRef, {
                 explorerName,
-                officialFlower: officialFlower || 'Dandelion',
-                officialBird: officialBird || 'Pigeon',
+                color,
                 isDevMode: isDevMode || false
             });
+            
+            // Also update local cache so user instantly sees their own color change
+            playerProfileCache[uid] = { color, explorerName };
         } catch (e) {
             console.error("Failed to update profile", e);
             alert("Failed to update profile. Please try again.");

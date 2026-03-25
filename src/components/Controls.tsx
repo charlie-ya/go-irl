@@ -1,7 +1,8 @@
-import { MapPin, Zap, Check, ShoppingCart, Shield, Crown, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Zap, Check, ShoppingCart, Shield } from 'lucide-react';
 import React, { useState } from 'react';
 import { getGridKey } from '../lib/gridSystem';
 import { OfferModal } from './OfferModal';
+import { VirtualJoystick } from './VirtualJoystick';
 import type { Offer } from '../lib/gameState';
 
 function timeAgo(timestamp: number): string {
@@ -20,7 +21,6 @@ interface ControlsProps {
     lng: number;
     locationLoading: boolean;
     selectedGridKey: string | null;
-    selectionOffset: { latOffset: number; lngOffset: number };
     onOffsetChange: React.Dispatch<React.SetStateAction<{ latOffset: number; lngOffset: number }>>;
     onClaim: (key: string) => Promise<{ bonus: number; capturedCount: number }>;
     onMakeOffer: (key: string, amount: number) => void;
@@ -28,7 +28,6 @@ interface ControlsProps {
     onGetCoins: () => void;
 
     // Ceremony Props
-    onStartCeremony: () => void;
     onAffirm: (key: string) => void;
     onCompleteCeremony: (key: string) => void;
     activeCeremony: { id: string; affirmations: string[]; ownerId: string } | null;
@@ -41,16 +40,15 @@ interface ControlsProps {
 }
 
 export function Controls({
-    lat, lng, locationLoading, selectedGridKey, selectionOffset, onOffsetChange,
+    lat, lng, locationLoading, selectedGridKey, onOffsetChange,
     onClaim, onMakeOffer, userBalance, onGetCoins,
-    onStartCeremony, onAffirm, onCompleteCeremony, activeCeremony, playerRank,
+    onAffirm, onCompleteCeremony, activeCeremony, playerRank,
     myId, myColor, claims, myOutgoingOffers
 }: ControlsProps) {
     const currentKey = locationLoading ? '...' : getGridKey(lat, lng);
     const activeKey = selectedGridKey || currentKey;
     const tile = claims[activeKey];
     const [showOfferModal, setShowOfferModal] = useState(false);
-    const [showAscendDialog, setShowAscendDialog] = useState(false);
 
     const isOwnedByMe = tile && tile.ownerId === myId;
     // For claiming mechanics, a moribund square acts as if it is unowned
@@ -62,7 +60,6 @@ export function Controls({
     const ceremonyHere = activeCeremony && activeCeremony.id === activeKey ? activeCeremony : null;
 
     // Check if player is eligible for rank promotion
-    const canAscend = playerRank !== 'Centurion';
     const isMinionOrCenturion = playerRank === 'Minion' || playerRank === 'Centurion';
 
     const handleMove = (dLat: number, dLng: number) => {
@@ -76,15 +73,10 @@ export function Controls({
     return (
         <div className="absolute bottom-28 left-0 right-0 px-4 z-[1000] flex flex-col items-center gap-4">
 
-            {/* --- DIRECTIONAL CONTROLS (Minion+) --- */}
+            {/* --- DIRECTIONAL JOYSTICK (Minion+) --- */}
             {isMinionOrCenturion && !locationLoading && (
-                <div className="flex items-center gap-1 bg-slate-900/90 p-2 rounded-2xl backdrop-blur-md border border-slate-700 shadow-2xl pointer-events-auto">
-                    <button onClick={() => handleMove(0, -1)} disabled={selectionOffset.lngOffset <= -1} className="p-3 bg-slate-800 rounded-xl text-white hover:bg-slate-700 disabled:opacity-30 active:scale-95 transition-all"><ChevronLeft size={24}/></button>
-                    <div className="flex flex-col gap-1">
-                        <button onClick={() => handleMove(1, 0)} disabled={selectionOffset.latOffset >= 1} className="p-3 bg-slate-800 rounded-xl text-white hover:bg-slate-700 disabled:opacity-30 active:scale-95 transition-all"><ChevronUp size={24}/></button>
-                        <button onClick={() => handleMove(-1, 0)} disabled={selectionOffset.latOffset <= -1} className="p-3 bg-slate-800 rounded-xl text-white hover:bg-slate-700 disabled:opacity-30 active:scale-95 transition-all"><ChevronDown size={24}/></button>
-                    </div>
-                    <button onClick={() => handleMove(0, 1)} disabled={selectionOffset.lngOffset >= 1} className="p-3 bg-slate-800 rounded-xl text-white hover:bg-slate-700 disabled:opacity-30 active:scale-95 transition-all"><ChevronRight size={24}/></button>
+                <div className="pointer-events-auto animate-in fade-in slide-in-from-bottom-4">
+                    <VirtualJoystick onMove={handleMove} />
                 </div>
             )}
 
@@ -99,15 +91,6 @@ export function Controls({
                                     Claimed!
                                 </div>
                             </div>
-                            {canAscend && (
-                                <button
-                                    onClick={() => setShowAscendDialog(true)}
-                                    className="flex items-center gap-2 bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-500 hover:to-yellow-400 active:scale-95 touch-manipulation text-white text-xs px-4 py-2 rounded-full shadow-lg border border-yellow-300/50 font-bold transition-transform min-h-[32px]"
-                                >
-                                    <Crown className="w-4 h-4" />
-                                    Ascend to New Rank
-                                </button>
-                            )}
                         </>
                     ) : (
                         <div className="flex flex-col items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
@@ -147,13 +130,7 @@ export function Controls({
             )}
 
 
-            <div className="bg-slate-900/80 backdrop-blur-md text-white p-3 px-4 rounded-lg shadow-lg flex items-center gap-3 border border-slate-700">
-                <MapPin className="text-blue-400 w-5 h-5" />
-                <div className="text-xs font-mono leading-tight">
-                    <div>LAT: {lat?.toFixed(4)}</div>
-                    <div>LNG: {lng?.toFixed(4)}</div>
-                </div>
-            </div>
+
 
             {/* --- CAPTURED TERRITORY (non-interactive) --- */}
             {!isOwnedByMe && isCapturedByOther && (
@@ -220,42 +197,6 @@ export function Controls({
                         minBid={2}
                     />
                 </>
-            )}
-
-            {/* Ascend Dialog Overlay */}
-            {showAscendDialog && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[3000] p-6">
-                    <div className="bg-slate-800/95 rounded-2xl p-6 max-w-sm w-full border border-amber-500/30 shadow-2xl">
-                        <div className="text-center">
-                            <div className="text-4xl mb-3">👑</div>
-                            <h2 className="text-xl font-bold text-white mb-2">Ascend to New Rank</h2>
-                            <p className="text-slate-300 text-sm leading-relaxed mb-4">
-                                To ascend to the rank of <strong className="text-amber-400">Minion</strong>, gather <strong className="text-amber-400">9 other players</strong> on this square.
-                                Each player must affirm your promotion by tapping the AFFIRM button.
-                            </p>
-                            <p className="text-slate-400 text-xs leading-relaxed mb-6">
-                                Minions can see more surrounding territory, and can claim squares adjacent to their location. New powers will be added soon!
-                            </p>
-                            <div className="flex flex-col gap-3">
-                                <button
-                                    onClick={() => {
-                                        setShowAscendDialog(false);
-                                        onStartCeremony();
-                                    }}
-                                    className="w-full bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-500 hover:to-yellow-400 text-white py-4 rounded-xl font-black text-lg shadow-lg shadow-amber-500/30 transition-all active:scale-95 border border-yellow-300/40"
-                                >
-                                    Ascend ✨
-                                </button>
-                                <button
-                                    onClick={() => setShowAscendDialog(false)}
-                                    className="w-full text-slate-400 hover:text-slate-300 py-2 text-sm font-medium transition-colors"
-                                >
-                                    Not Now
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             )}
         </div>
     );
