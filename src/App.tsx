@@ -78,7 +78,11 @@ function App() {
   // Load Exclusion Zones (Global/Regional)
   const { zones } = useExclusionZones();
 
-  const userLocation = useGeolocation();
+  const [hasAcknowledgedSafety, setHasAcknowledgedSafety] = useState(() => {
+    return !!localStorage.getItem('safety_warning_seen');
+  });
+
+  const userLocation = useGeolocation(hasAcknowledgedSafety);
   const {
     claims, player,
     claimSquare, makeOffer, acceptOffer, rejectOffer,
@@ -322,8 +326,10 @@ function App() {
         </div>
       )}
 
-      {/* Initial Safety Warning Modal */}
-      <SafetyWarning />
+      {/* Initial Safety Warning & Location Disclosures */}
+      {!hasAcknowledgedSafety && (
+        <SafetyWarning onAcknowledge={() => setHasAcknowledgedSafety(true)} />
+      )}
 
       {/* Capture Celebration Overlay */}
       {captureBonusAmount > 0 && (

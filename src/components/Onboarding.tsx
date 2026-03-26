@@ -14,6 +14,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
     const [error, setError] = useState('');
     const [referralCode, setReferralCode] = useState('');
     const [showReferralInput, setShowReferralInput] = useState(false);
+    const [agreedLegal, setAgreedLegal] = useState(false);
 
     // Pre-fill referral code from URL on mount
     useEffect(() => {
@@ -168,6 +169,21 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                         </p>
                         <ColorPicker selectedColor={color} onColorChange={setColor} />
 
+                        {/* Age & Legal Gate */}
+                        <div className="bg-slate-800 p-3 rounded-lg border border-slate-700 mt-4">
+                            <label className="flex items-start gap-3 cursor-pointer">
+                                <input 
+                                    type="checkbox" 
+                                    checked={agreedLegal}
+                                    onChange={(e) => setAgreedLegal(e.target.checked)}
+                                    className="mt-1 w-5 h-5 rounded border-slate-600 text-blue-500 focus:ring-blue-500 bg-slate-700"
+                                />
+                                <span className="text-xs text-slate-300">
+                                    I confirm I am <b>13 years of age or older</b>, and I have read and agree to the <a href="/legal/eula.html" target="_blank" className="text-blue-400 hover:underline">EULA</a> and <a href="/legal/privacy.html" target="_blank" className="text-blue-400 hover:underline">Privacy Policy</a>.
+                                </span>
+                            </label>
+                        </div>
+
                         {/* Preview */}
                         <div className="bg-slate-700 rounded-lg p-4 space-y-2">
                             <p className="text-slate-300 text-sm text-center">Preview:</p>
@@ -194,7 +210,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                     )}
                     <button
                         onClick={handleNext}
-                        disabled={step === 2 && explorerName.length < 3}
+                        disabled={(step === 2 && explorerName.length < 3) || (step === 3 && !agreedLegal)}
                         className="flex-1 py-3 px-6 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {step === 3 ? 'Start Exploring!' : 'Next'}

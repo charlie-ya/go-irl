@@ -45,7 +45,7 @@ export const isAndroidDevModeEnabled = (): boolean => {
     return false;
 };
 
-export function useGeolocation() {
+export function useGeolocation(enabled: boolean = true) {
     const [state, setState] = useState<LocationState>({
         lat: null,
         lng: null,
@@ -80,6 +80,8 @@ export function useGeolocation() {
     };
 
     useEffect(() => {
+        if (!enabled) return;
+
         if (!navigator.geolocation) {
             setState(s => ({ ...s, error: 'Geolocation not supported', loading: false }));
             return;
@@ -157,7 +159,7 @@ export function useGeolocation() {
         );
 
         return () => navigator.geolocation.clearWatch(unwatch);
-    }, []);
+    }, [enabled]);
 
     return state;
 }

@@ -112,6 +112,34 @@ export function ProfileEditor({ currentName, currentColor, playerId, onSave, onC
                     </button>
                 </div>
 
+                {/* Account Deletion */}
+                <div className="border-t border-slate-600 pt-4 mt-2">
+                    <button
+                        onClick={() => {
+                            if (window.confirm("WARNING: Deleting your account is permanent. All associated territories will fade to Moribund. Are you completely sure you wish to delete your account?")) {
+                                import('../lib/firebase').then(({ auth }) => {
+                                    const user = auth.currentUser;
+                                    if (user) {
+                                        user.delete().then(() => {
+                                            alert("Account successfully deleted.");
+                                            window.location.reload();
+                                        }).catch(e => {
+                                            if (e.code === 'auth/requires-recent-login') {
+                                                alert("Please sign out and sign back in to verify your identity before deleting your account.");
+                                            } else {
+                                                alert("Failed to delete account: " + e.message);
+                                            }
+                                        });
+                                    }
+                                });
+                            }
+                        }}
+                        className="w-full py-3 px-4 bg-transparent border border-red-500/50 hover:bg-red-500/20 text-red-500 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all"
+                    >
+                        Delete Account Permanently
+                    </button>
+                </div>
+
                 {/* Invite Friends */}
                 <div className="border-t border-slate-600 pt-4">
                     <button

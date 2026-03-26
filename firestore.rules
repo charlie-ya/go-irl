@@ -30,7 +30,7 @@ service cloud.firestore {
     // Tiles collection - authenticated users can claim tiles
     match /tiles/{tileId} {
       allow read: if true; // Anyone can read tiles
-      allow create: if request.auth != null; // Authenticated users can claim
+      allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid; // Authenticated users can claim
       allow update, delete: if request.auth != null && 
                                resource.data.ownerId == request.auth.uid; // Only owner can modify
     }
@@ -50,13 +50,14 @@ service cloud.firestore {
     // Captured Territories collection - read-only for all, system creates
     match /captured/{territoryId} {
       allow read: if true; // Anyone can read territories
-      allow write: if request.auth != null; // Authenticated users can create territories
+      allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
     }
 
     // Exclusion Zones collection
     match /zones/{zoneId} {
       allow read: if true;
-      allow write: if request.auth != null; // Temporary: Allow auth users to seed
+      allow write: if false; // Only Admin SDK or Cloud Functions can write exclusion zones
     }
 
     // Leaderboard cache (written by Cloud Functions, readable by all)
@@ -68,8 +69,12 @@ service cloud.firestore {
     // Referrals collection
     match /referrals/{referralId} {
       allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null;
+      allow create: if request.auth != null 
+                    && request.resource.data.refereeId == request.auth.uid 
+                    && request.resource.data.referrerId != request.auth.uid; // Prevent self-referral
+      allow update: if request.auth != null
+                    && request.resource.data.refereeId == resource.data.refereeId
+                    && request.resource.data.referrerId == resource.data.referrerId; // Prevent changing existing links
     }
 
     // Promotion Ceremonies collection
