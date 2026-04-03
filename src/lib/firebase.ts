@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, signInWithCredential } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, signInWithCredential, signInWithEmailAndPassword } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import { Capacitor } from '@capacitor/core';
@@ -52,6 +52,15 @@ export const signInWithGoogle = async () => {
     } catch (error: any) {
         console.error("Error signing in with Google", error);
         alert(`Failed to sign in:\n${error.message}\n\nCheck console for more details.`);
+    }
+};
+
+export const signInWithEmail = async (email: string, password: string) => {
+    try {
+        await signInWithEmailAndPassword(auth, email, password);
+    } catch (error: any) {
+        console.error("Error signing in with email", error);
+        throw error;
     }
 };
 

@@ -10,6 +10,21 @@ import { getExclusionZonesGeoJSON, type ExclusionZone } from '../lib/exclusionZo
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
+/** Generate a GeoJSON circle polygon using basic trig (no turf dependency) */
+function createCircleGeoJSON(centerLat: number, centerLng: number, radiusMeters: number, steps = 64) {
+    const coords: [number, number][] = [];
+    const earthRadius = 6371000;
+    for (let i = 0; i <= steps; i++) {
+        const angle = (i / steps) * 2 * Math.PI;
+        const dLat = (radiusMeters / earthRadius) * Math.cos(angle);
+        const dLng = (radiusMeters / earthRadius) * Math.sin(angle) / Math.cos(centerLat * Math.PI / 180);
+        coords.push([centerLng + dLng * (180 / Math.PI), centerLat + dLat * (180 / Math.PI)]);
+    }
+    return {
+        type: 'FeatureCollection' as const,
+        features: [{ type: 'Feature' as const, geometry: { type: 'Polygon' as const, coordinates: [coords] }, properties: {} }]
+    };
+}
 
 interface MapBoardProps {
     lat: number | null;
@@ -17,10 +32,11 @@ interface MapBoardProps {
     selectedGridKey?: string | null;
     claims: Record<string, { color: string; explorerName: string; status?: string }>;
     exclusionZones: ExclusionZone[];
+    viewRadiusMeters?: number;
     onMapReady?: (map: mapboxgl.Map) => void;
 }
 
-export function MapBoard({ lat, lng, selectedGridKey, claims, exclusionZones, onMapReady }: MapBoardProps) {
+export function MapBoard({ lat, lng, selectedGridKey, claims, exclusionZones, viewRadiusMeters = 200, onMapReady }: MapBoardProps) {
     const mapRef = useRef<any>(null);
 
     // Initial View State — only computed once GPS coords are valid
@@ -144,6 +160,14 @@ export function MapBoard({ lat, lng, selectedGridKey, claims, exclusionZones, on
     const exclusionZonesGeoJSON = useMemo(() => {
         return getExclusionZonesGeoJSON(exclusionZones);
     }, [exclusionZones]);
+
+    // View Radius Circle GeoJSON
+    const viewRadiusGeoJSON = useMemo(() => {
+        if (lat === null || lng === null) {
+            return { type: 'FeatureCollection' as const, features: [] };
+        }
+        return createCircleGeoJSON(lat, lng, viewRadiusMeters);
+    }, [lat, lng, viewRadiusMeters]);
 
     // Debug log on claims update
     useEffect(() => {
@@ -293,7 +317,19 @@ export function MapBoard({ lat, lng, selectedGridKey, claims, exclusionZones, on
                 />
             </Source>
 
-
+            {/* View Radius Circle */}
+            <Source id="view-radius-source" type="geojson" data={viewRadiusGeoJSON as any}>
+                <Layer
+                    id="view-radius-line"
+                    type="line"
+                    paint={{
+                        'line-color': '#64748b',
+                        'line-width': 1.5,
+                        'line-dasharray': [4, 4],
+                        'line-opacity': 0.6
+                    }}
+                />
+            </Source>
 
             {/* User Marker — lat/lng are guaranteed non-null here */}
             <Marker longitude={lng!} latitude={lat!} anchor="center">

@@ -1,13 +1,40 @@
-import { signInWithGoogle, signInWithGoogleNative } from '../lib/firebase';
-import { Gamepad2 } from 'lucide-react';
+import { signInWithGoogle, signInWithGoogleNative, signInWithEmail } from '../lib/firebase';
+import { Gamepad2, Mail, ChevronDown, ChevronUp } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
+import { useState } from 'react';
 
 export function Login() {
-    const handleLogin = async () => {
+    const [showEmailLogin, setShowEmailLogin] = useState(false);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const handleGoogleLogin = async () => {
         if (Capacitor.isNativePlatform()) {
             await signInWithGoogleNative();
         } else {
             await signInWithGoogle();
+        }
+    };
+
+    const handleEmailLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        setLoading(true);
+        try {
+            await signInWithEmail(email, password);
+        } catch (err: any) {
+            const code = err?.code || '';
+            if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
+                setError('Invalid email or password.');
+            } else if (code === 'auth/too-many-requests') {
+                setError('Too many attempts. Try again later.');
+            } else {
+                setError('Sign in failed. Please try again.');
+            }
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -26,17 +53,52 @@ export function Login() {
             </div>
 
             <button
-                onClick={handleLogin}
+                onClick={handleGoogleLogin}
                 className="bg-white text-slate-900 font-bold py-3 px-8 rounded-full shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center gap-3"
             >
                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-6 h-6" alt="Google" />
                 Sign in with Google
             </button>
 
-            <div className="mt-8 text-xs text-slate-500 text-center">
-                Create a Firebase Project and add config to <br />
-                <code className="bg-slate-800 px-1 py-0.5 rounded">src/lib/firebase.ts</code>
-            </div>
+            <button
+                onClick={() => setShowEmailLogin(!showEmailLogin)}
+                className="mt-4 text-slate-400 text-sm flex items-center gap-1 hover:text-slate-300 transition-colors"
+            >
+                <Mail className="w-4 h-4" />
+                Sign in with email
+                {showEmailLogin ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+
+            {showEmailLogin && (
+                <form onSubmit={handleEmailLogin} className="mt-4 w-full max-w-xs flex flex-col gap-3 animate-fade-in-up">
+                    <input
+                        type="email"
+                        placeholder="Email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        className="bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+                    />
+                    <input
+                        type="password"
+                        placeholder="Password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        className="bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+                    />
+                    {error && (
+                        <p className="text-red-400 text-sm text-center">{error}</p>
+                    )}
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="bg-indigo-600 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:bg-indigo-500 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {loading ? 'Signing in...' : 'Sign In'}
+                    </button>
+                </form>
+            )}
         </div>
     );
 }

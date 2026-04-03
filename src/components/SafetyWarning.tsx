@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { MapPin } from 'lucide-react';
+import { LegalLink } from './LegalLink';
 
 interface SafetyWarningProps {
     onAcknowledge: () => void;
@@ -41,7 +42,7 @@ export function SafetyWarning({ onAcknowledge }: SafetyWarningProps) {
                                     className="mt-1 w-5 h-5 rounded border-slate-600 text-blue-500 focus:ring-blue-500 bg-slate-700"
                                 />
                                 <span className="text-xs text-slate-300">
-                                    I confirm I am <b>13 years of age or older</b>, and I have read and agree to the <a href="/legal/eula.html" target="_blank" className="text-blue-400 hover:underline">EULA</a> and <a href="/legal/privacy.html" target="_blank" className="text-blue-400 hover:underline">Privacy Policy</a>.
+                                    I confirm I am <b>13 years of age or older</b>, and I have read and agree to the <LegalLink url="/legal/eula.html" label="EULA" /> and <LegalLink url="/legal/privacy.html" label="Privacy Policy" />.
                                 </span>
                             </label>
                         </div>

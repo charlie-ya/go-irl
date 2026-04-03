@@ -268,7 +268,7 @@ export const NOLLI_MAP_STYLE: Style = {
             layout: {
                 "symbol-placement": "line",
                 "symbol-spacing": 300,
-                "text-field": ["get", "name"],
+                "text-field": ["coalesce", ["get", "name_en"], ["get", "name"]],
                 "text-font": ["Cormorant Garamond Italic", "DIN Offc Pro Italic", "Arial Unicode MS Regular"],
                 "text-size": 11,
                 "text-transform": "uppercase",
@@ -289,7 +289,7 @@ export const NOLLI_MAP_STYLE: Style = {
             type: "symbol",
             minzoom: 15,
             layout: {
-                "text-field": ["get", "name"],
+                "text-field": ["coalesce", ["get", "name_en"], ["get", "name"]],
                 "text-font": ["Cormorant Garamond Italic", "DIN Offc Pro Italic", "Arial Unicode MS Regular"],
                 "text-size": 14,
                 "text-max-width": 8

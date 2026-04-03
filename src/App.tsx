@@ -126,8 +126,8 @@ function App() {
 
   // Determine current and selected grid keys
   const currentGridKey = userLocation.lat !== null && userLocation.lng !== null
-      ? getGridKey(userLocation.lat, userLocation.lng)
-      : null;
+    ? getGridKey(userLocation.lat, userLocation.lng)
+    : null;
 
   const selectedGridKey = useMemo(() => {
     if (!currentGridKey) return null;
@@ -162,7 +162,7 @@ function App() {
 
       {/* Top Controls: Offers & Profile/Stats Panel */}
       <div className="absolute top-4 right-4 z-[2000] flex items-start gap-3 pointer-events-none">
-        
+
         {/* Offers notification badge */}
         <button
           onClick={() => setShowOffersInbox(true)}
@@ -177,7 +177,7 @@ function App() {
           )}
         </button>
 
-        <ProfileStatsPanel 
+        <ProfileStatsPanel
           explorerName={player?.explorerName}
           rank={player?.rank}
           color={player?.color}
@@ -196,8 +196,8 @@ function App() {
       {/* Pending Offers Reminder (once per session) */}
       {pendingOffers.length > 0 && !hasSeenOffersAlert && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[2500] flex items-center justify-center p-6"
-             onClick={() => setHasSeenOffersAlert(true)}>
-          <button 
+          onClick={() => setHasSeenOffersAlert(true)}>
+          <button
             onClick={(e) => { e.stopPropagation(); setHasSeenOffersAlert(true); setShowOffersInbox(true); }}
             className="bg-amber-500/90 hover:bg-amber-500 text-white text-base font-bold px-6 py-5 rounded-2xl shadow-2xl border border-amber-400/50 backdrop-blur-md transition-all flex items-center gap-3 max-w-md text-center leading-snug animate-in slide-in-from-bottom-4"
           >
@@ -264,6 +264,7 @@ function App() {
         selectedGridKey={selectedGridKey}
         claims={claims}
         exclusionZones={zones}
+        viewRadiusMeters={player?.rank === 'Minion' || player?.rank === 'Centurion' ? 300 : 200}
         onMapReady={(m) => { mapInstanceRef.current = m; }}
       />
 
@@ -381,51 +382,51 @@ function App() {
       {/* Ascend Dialog Overlay (Global) */}
       {showAscendDialog && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[3000] p-6 pointer-events-auto">
-            <div className="bg-slate-800/95 rounded-2xl p-6 max-w-sm w-full border border-amber-500/30 shadow-2xl">
-                <div className="text-center">
-                    <div className="text-4xl mb-3">👑</div>
-                    <h2 className="text-xl font-bold text-white mb-2">Ascend to New Rank</h2>
-                    <p className="text-slate-300 text-sm leading-relaxed mb-4">
-                        To ascend to the rank of <strong className="text-amber-400">Minion</strong>, gather <strong className="text-amber-400">9 other players</strong> on this square.
-                        Each player must affirm your promotion by tapping the AFFIRM button.
-                    </p>
-                    <p className="text-slate-400 text-xs leading-relaxed mb-6">
-                        Minions can see more surrounding territory, and can claim squares adjacent to their location.
-                    </p>
+          <div className="bg-slate-800/95 rounded-2xl p-6 max-w-sm w-full border border-amber-500/30 shadow-2xl">
+            <div className="text-center">
+              <div className="text-4xl mb-3">👑</div>
+              <h2 className="text-xl font-bold text-white mb-2">Ascend to New Rank</h2>
+              <p className="text-slate-300 text-sm leading-relaxed mb-4">
+                To ascend to the rank of <strong className="text-amber-400">Minion</strong>, gather <strong className="text-amber-400">9 other players</strong> on this square.
+                Each player must affirm your promotion by tapping the AFFIRM button.
+              </p>
+              <p className="text-slate-400 text-xs leading-relaxed mb-6">
+                Minions can see more surrounding territory, and can claim squares adjacent to their location.
+              </p>
 
-                    {/* Condition to start ceremony */}
-                    {!isOwnedByMe ? (
-                         <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mb-6">
-                             <p className="text-red-400 text-sm font-semibold">📍 Stand on your territory</p>
-                             <p className="text-slate-300 text-xs mt-1">You must physically stand on one of your owned squares to begin the ceremony.</p>
-                         </div>
-                    ) : (
-                         <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3 mb-6">
-                             <p className="text-emerald-400 text-sm font-semibold">📍 You're in position!</p>
-                             <p className="text-slate-300 text-xs mt-1">You are standing on your own square and ready to ascend.</p>
-                         </div>
-                    )}
-
-                    <div className="flex flex-col gap-3">
-                        <button
-                            onClick={() => {
-                                setShowAscendDialog(false);
-                                startPromotionCeremony();
-                            }}
-                            disabled={!isOwnedByMe}
-                            className="w-full bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-500 hover:to-yellow-400 text-white py-4 rounded-xl font-black text-lg shadow-lg shadow-amber-500/30 transition-all active:scale-95 border border-yellow-300/40 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
-                        >
-                            Ascend ✨
-                        </button>
-                        <button
-                            onClick={() => setShowAscendDialog(false)}
-                            className="w-full text-slate-400 hover:text-slate-300 py-2 text-sm font-medium transition-colors"
-                        >
-                            Not Now
-                        </button>
-                    </div>
+              {/* Condition to start ceremony */}
+              {!isOwnedByMe ? (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mb-6">
+                  <p className="text-red-400 text-sm font-semibold">📍 Stand on your territory</p>
+                  <p className="text-slate-300 text-xs mt-1">You must physically stand on one of your owned squares to begin the ceremony.</p>
                 </div>
+              ) : (
+                <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3 mb-6">
+                  <p className="text-emerald-400 text-sm font-semibold">📍 You're in position!</p>
+                  <p className="text-slate-300 text-xs mt-1">You are standing on your own square and ready to ascend.</p>
+                </div>
+              )}
+
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => {
+                    setShowAscendDialog(false);
+                    startPromotionCeremony();
+                  }}
+                  disabled={!isOwnedByMe}
+                  className="w-full bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-500 hover:to-yellow-400 text-white py-4 rounded-xl font-black text-lg shadow-lg shadow-amber-500/30 transition-all active:scale-95 border border-yellow-300/40 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
+                >
+                  Ascend ✨
+                </button>
+                <button
+                  onClick={() => setShowAscendDialog(false)}
+                  className="w-full text-slate-400 hover:text-slate-300 py-2 text-sm font-medium transition-colors"
+                >
+                  Not Now
+                </button>
+              </div>
             </div>
+          </div>
         </div>
       )}
 
@@ -453,27 +454,27 @@ function App() {
       {activeCeremony?.status === 'completed' && (
         activeCeremony.ownerId === player.id || activeCeremony.affirmations.includes(player.id)
       ) && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-[5000] p-6 animate-in fade-in duration-500">
-          <div className="text-center max-w-sm">
-            <div className="text-6xl mb-4 animate-bounce">🎉</div>
-            <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-300 mb-3">
-              {activeCeremony.ownerId === player.id ? 'You Ascended!' : `${activeCeremony.ownerName} Ascended!`}
-            </h1>
-            <p className="text-slate-300 text-lg mb-2">
-              {activeCeremony.ownerId === player.id
-                ? 'Your loyalty has been recognized by your subjects.'
-                : 'You witnessed a historic promotion ceremony!'}
-            </p>
-            <p className="text-amber-400 font-semibold text-sm mb-6">
-              {activeCeremony.affirmations.length + 1} explorers gathered
-            </p>
-            <div className="text-4xl mb-4">👑</div>
-            <p className="text-xs text-slate-500">
-              This celebration will dismiss automatically.
-            </p>
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-[5000] p-6 animate-in fade-in duration-500">
+            <div className="text-center max-w-sm">
+              <div className="text-6xl mb-4 animate-bounce">🎉</div>
+              <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-300 mb-3">
+                {activeCeremony.ownerId === player.id ? 'You Ascended!' : `${activeCeremony.ownerName} Ascended!`}
+              </h1>
+              <p className="text-slate-300 text-lg mb-2">
+                {activeCeremony.ownerId === player.id
+                  ? 'Your loyalty has been recognized by your subjects.'
+                  : 'You witnessed a historic promotion ceremony!'}
+              </p>
+              <p className="text-amber-400 font-semibold text-sm mb-6">
+                {activeCeremony.affirmations.length + 1} explorers gathered
+              </p>
+              <div className="text-4xl mb-4">👑</div>
+              <p className="text-xs text-slate-500">
+                This celebration will dismiss automatically.
+              </p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
     </div>
   );

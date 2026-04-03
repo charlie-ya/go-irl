@@ -21,10 +21,11 @@ interface ScoringChyronProps {
 
 const DEFAULT_MESSAGES: ChyronMessage[] = [
     { id: 'tut_01', type: 'tutorial', icon: '💡', content: 'Tip: Enclose an area to capture territory!', priority: 1 },
-    { id: 'ad_01', type: 'ad', icon: '☕', content: 'Need energy? Grab a coffee at Joe\'s!', priority: 1 },
     { id: 'tut_02', type: 'tutorial', icon: '🏃', content: 'Tip: Move around to discover new tiles!', priority: 1 },
-    { id: 'tut_03', type: 'tutorial', icon: '👑', content: 'Climb the ranks by claiming more land!', priority: 1 },
-    { id: 'tut_04', type: 'tutorial', icon: '💰', content: 'Tip: Capture territory to earn bonus coins!', priority: 1 },
+    { id: 'tut_03', type: 'tutorial', icon: '🏃', content: 'Sorry, couch potatoes, you have to get up to play!', priority: 1 },
+    { id: 'tut_04', type: 'tutorial', icon: '👑', content: 'Tip: Lead your block by claiming more land!', priority: 1 },
+    { id: 'tut_05', type: 'tutorial', icon: '💰', content: 'Tip: Capture territory to earn bonus coins!', priority: 1 },
+    { id: 'tut_06', type: 'tutorial', icon: '🏃', content: 'Tip: Standing on someone else\'s square? Make an offer!', priority: 1 },
 ];
 
 export function ScrollingChyron({ claims, userLat, userLng, myId, blockLeader, isBlockLeaderMe }: ScoringChyronProps) {
