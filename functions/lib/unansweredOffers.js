@@ -56,7 +56,11 @@ exports.enactUnansweredOffers = functions.pubsub.schedule("every 1 hours").onRun
                     transaction.delete(offerDoc.ref);
                     return;
                 }
+                const sellerRef = db.collection('players').doc(freshOffer.sellerId);
+                const sellerSnap = await transaction.get(sellerRef);
+                // --- ALL READS DONE. Now compute and write. ---
                 const buyer = buyerSnap.data();
+                const seller = sellerSnap.data();
                 const halvedAmount = Math.floor(freshOffer.amount / 2);
                 if (buyer.balance < halvedAmount) {
                     // Buyer doesn't have enough balance even for the discounted amount. 
@@ -64,8 +68,9 @@ exports.enactUnansweredOffers = functions.pubsub.schedule("every 1 hours").onRun
                     transaction.delete(offerDoc.ref);
                     return;
                 }
-                const sellerRef = db.collection('players').doc(freshOffer.sellerId);
-                // --- ALL CHECKS PASSED, EXECUTE TRANSACTION ---
+                // Track forfeiture inactivity
+                const newForfeitCount = ((seller === null || seller === void 0 ? void 0 : seller.unansweredForfeitCount) || 0) + 1;
+                const becomesInactive = newForfeitCount >= 3 && !(seller === null || seller === void 0 ? void 0 : seller.isInactive);
                 // 1. Transfer Tile
                 transaction.update(tileRef, {
                     ownerId: freshOffer.buyerId,
@@ -73,11 +78,6 @@ exports.enactUnansweredOffers = functions.pubsub.schedule("every 1 hours").onRun
                     color: buyer.color,
                     timestamp: admin.firestore.FieldValue.serverTimestamp(),
                 });
-                const sellerSnap = await transaction.get(sellerRef);
-                const seller = sellerSnap.data();
-                // Track forfeiture inactivity
-                const newForfeitCount = ((seller === null || seller === void 0 ? void 0 : seller.unansweredForfeitCount) || 0) + 1;
-                const becomesInactive = newForfeitCount >= 3 && !(seller === null || seller === void 0 ? void 0 : seller.isInactive);
                 // 2. Adjust Balances
                 transaction.update(buyerRef, {
                     balance: admin.firestore.FieldValue.increment(-halvedAmount),

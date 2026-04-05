@@ -310,8 +310,8 @@ export function MapBoard({ lat, lng, selectedGridKey, claims, exclusionZones, vi
                     type="line"
                     paint={{
                         'line-color': '#FEF08A', // yellow-200 (creamy yellow)
-                        'line-width': 3.5,
-                        'line-dasharray': [3, 3],
+                        'line-width': 2.5,
+                        'line-dasharray': [1, 1],
                         'line-opacity': 1
                     }}
                 />
@@ -323,10 +323,10 @@ export function MapBoard({ lat, lng, selectedGridKey, claims, exclusionZones, vi
                     id="view-radius-line"
                     type="line"
                     paint={{
-                        'line-color': '#64748b',
+                        'line-color': '#1e2f47ff',
                         'line-width': 1.5,
                         'line-dasharray': [4, 4],
-                        'line-opacity': 0.6
+                        'line-opacity': 0.8
                     }}
                 />
             </Source>

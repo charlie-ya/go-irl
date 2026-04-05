@@ -71,7 +71,7 @@ export function Controls({
     };
 
     return (
-        <div className="absolute bottom-28 left-0 right-0 px-4 z-[1000] flex flex-col items-center gap-4">
+        <div className="absolute bottom-24 left-0 right-0 px-3 z-[1000] flex flex-col items-center gap-3">
 
             {/* --- DIRECTIONAL JOYSTICK (Minion+) --- */}
             {isMinionOrCenturion && !locationLoading && (
@@ -82,28 +82,28 @@ export function Controls({
 
             {/* --- OWNER VIEW --- */}
             {isOwnedByMe && (
-                <div className="flex flex-col gap-2 items-center bg-slate-900/90 p-3 rounded-xl border border-white/10 shadow-xl scale-90 origin-bottom">
+                <div className="flex flex-col gap-1.5 items-center bg-slate-900/90 p-2 rounded-xl border border-white/10 shadow-xl scale-90 origin-bottom">
                     {!ceremonyHere ? (
                         <>
-                            <div className="flex items-center gap-3 bg-slate-800/80 px-6 py-3 rounded-full border border-white/10 shadow-lg backdrop-blur-sm">
-                                <Check className="w-5 h-5 text-green-400" />
-                                <div className="font-black text-white uppercase tracking-wider text-base">
+                            <div className="flex items-center gap-2 bg-slate-800/80 px-5 py-2 rounded-full border border-white/10 shadow-lg backdrop-blur-sm">
+                                <Check className="w-4 h-4 text-green-400" />
+                                <div className="font-black text-white uppercase tracking-wider text-sm">
                                     Claimed!
                                 </div>
                             </div>
                         </>
                     ) : (
-                        <div className="flex flex-col items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
+                        <div className="flex flex-col items-center gap-1.5 animate-in fade-in slide-in-from-bottom-2">
                             <div className="text-yellow-400 text-[10px] font-mono uppercase tracking-widest">
                                 • Ceremony •
                             </div>
-                            <div className="text-xl font-black text-white">
-                                {ceremonyHere.affirmations.length} <span className="text-xs font-normal text-slate-400">/ 9 affirmations</span>
+                            <div className="text-lg font-black text-white">
+                                {ceremonyHere.affirmations.length} <span className="text-[10px] font-normal text-slate-400">/ 9 affirmations</span>
                             </div>
                             <button
                                 onClick={() => onCompleteCeremony(activeKey)}
                                 disabled={ceremonyHere.affirmations.length < 9}
-                                className="bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 active:scale-95 touch-manipulation disabled:from-slate-600 disabled:to-slate-700 disabled:border-slate-500 text-white text-[10px] px-4 py-2 rounded-full shadow-lg border border-yellow-300 font-bold transition-transform min-h-[36px]"
+                                className="bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 active:scale-95 touch-manipulation disabled:from-slate-600 disabled:to-slate-700 disabled:border-slate-500 text-white text-[9px] px-3 py-1.5 rounded-full shadow-lg border border-yellow-300 font-bold transition-transform min-h-[30px]"
                             >
                                 {ceremonyHere.affirmations.length >= 9 ? 'CLAIM PROMOTION' : `Need ${9 - ceremonyHere.affirmations.length} more`}
                             </button>
@@ -114,15 +114,15 @@ export function Controls({
 
             {/* --- GUEST VIEW (Ceremony Active) --- */}
             {isOwnedByOther && ceremonyHere && (
-                <div className="flex flex-col gap-2 items-center bg-indigo-900/90 p-4 rounded-xl border border-indigo-400/30 shadow-2xl animate-pulse">
-                    <div className="text-indigo-200 text-xs font-bold uppercase tracking-widest">Promotion Ceremony In Progress</div>
-                    <div className="text-white font-bold text-center text-sm">
+                <div className="flex flex-col gap-1.5 items-center bg-indigo-900/90 p-3 rounded-xl border border-indigo-400/30 shadow-2xl animate-pulse">
+                    <div className="text-indigo-200 text-[10px] font-bold uppercase tracking-widest">Promotion Ceremony In Progress</div>
+                    <div className="text-white font-bold text-center text-xs">
                         Help the owner rise in rank!
                     </div>
                     <button
                         onClick={() => onAffirm(activeKey)}
                         disabled={ceremonyHere.affirmations.includes(myId)}
-                        className="bg-indigo-500 hover:bg-indigo-400 active:scale-95 touch-manipulation disabled:bg-slate-600 disabled:cursor-not-allowed text-white text-sm px-6 py-2 rounded-full shadow-lg font-bold transition-all min-h-[40px]"
+                        className="bg-indigo-500 hover:bg-indigo-400 active:scale-95 touch-manipulation disabled:bg-slate-600 disabled:cursor-not-allowed text-white text-xs px-5 py-1.5 rounded-full shadow-lg font-bold transition-all min-h-[32px]"
                     >
                         {ceremonyHere.affirmations.includes(myId) ? "Affirmed! 🫡" : "AFFIRM 🙌"}
                     </button>
@@ -134,9 +134,9 @@ export function Controls({
 
             {/* --- CAPTURED TERRITORY (non-interactive) --- */}
             {!isOwnedByMe && isCapturedByOther && (
-                <div className="flex items-center gap-3 bg-slate-800/80 px-6 py-3 rounded-full border border-amber-500/30 shadow-lg backdrop-blur-sm">
-                    <Shield className="w-5 h-5 text-amber-400" />
-                    <div className="font-bold text-amber-300 uppercase tracking-wider text-sm">
+                <div className="flex items-center gap-2 bg-slate-800/80 px-5 py-2 rounded-full border border-amber-500/30 shadow-lg backdrop-blur-sm">
+                    <Shield className="w-4 h-4 text-amber-400" />
+                    <div className="font-bold text-amber-300 uppercase tracking-wider text-xs">
                         Captured Territory
                     </div>
                 </div>
@@ -144,9 +144,9 @@ export function Controls({
 
             {/* --- PENDING OFFER (informational) --- */}
             {!isOwnedByMe && !isCapturedByOther && myPendingOffer && (
-                <div className="flex items-center gap-3 bg-slate-800/80 px-6 py-3 rounded-full border border-emerald-500/30 shadow-lg backdrop-blur-sm">
-                    <ShoppingCart className="w-5 h-5 text-emerald-400" />
-                    <div className="font-semibold text-emerald-300 text-sm">
+                <div className="flex items-center gap-2 bg-slate-800/80 px-5 py-2 rounded-full border border-emerald-500/30 shadow-lg backdrop-blur-sm">
+                    <ShoppingCart className="w-4 h-4 text-emerald-400" />
+                    <div className="font-semibold text-emerald-300 text-xs">
                         You offered {myPendingOffer.amount} coins {timeAgo(myPendingOffer.createdAt)}
                     </div>
                 </div>
@@ -166,7 +166,7 @@ export function Controls({
                             }
                         }}
                         disabled={locationLoading}
-                        className={`transition-all duration-300 font-bold py-4 px-8 rounded-full shadow-2xl flex items-center gap-3 text-lg border-2 
+                        className={`transition-all duration-300 font-bold py-3 px-6 rounded-full shadow-2xl flex items-center gap-2 text-base border-2 
                             ${isOwnedByOther
                                 ? 'active:scale-95 bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-white/20'
                                 : 'active:scale-95 bg-gradient-to-r from-indigo-500 to-purple-600 text-white border-white/20'
@@ -177,12 +177,12 @@ export function Controls({
                     >
                         {isOwnedByOther ? (
                             <>
-                                <ShoppingCart className="w-5 h-5" />
+                                <ShoppingCart className="w-4 h-4" />
                                 MAKE OFFER
                             </>
                         ) : (
                             <>
-                                <Zap className="fill-current w-5 h-5" />
+                                <Zap className="fill-current w-4 h-4" />
                                 CLAIM FOR 1 COIN
                             </>
                         )}

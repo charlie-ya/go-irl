@@ -67,8 +67,14 @@ export const enactUnansweredOffers = functions.pubsub.schedule("every 1 hours").
                     transaction.delete(offerDoc.ref);
                     return;
                 }
+
+                const sellerRef = db.collection('players').doc(freshOffer.sellerId);
+                const sellerSnap = await transaction.get(sellerRef);
                 
+                // --- ALL READS DONE. Now compute and write. ---
+
                 const buyer = buyerSnap.data();
+                const seller = sellerSnap.data();
                 const halvedAmount = Math.floor(freshOffer.amount / 2);
                 
                 if (buyer!.balance < halvedAmount) {
@@ -78,10 +84,10 @@ export const enactUnansweredOffers = functions.pubsub.schedule("every 1 hours").
                     return;
                 }
 
-                const sellerRef = db.collection('players').doc(freshOffer.sellerId);
+                // Track forfeiture inactivity
+                const newForfeitCount = (seller?.unansweredForfeitCount || 0) + 1;
+                const becomesInactive = newForfeitCount >= 3 && !seller?.isInactive;
 
-                // --- ALL CHECKS PASSED, EXECUTE TRANSACTION ---
-                
                 // 1. Transfer Tile
                 transaction.update(tileRef, {
                     ownerId: freshOffer.buyerId,
@@ -89,13 +95,6 @@ export const enactUnansweredOffers = functions.pubsub.schedule("every 1 hours").
                     color: buyer!.color,
                     timestamp: admin.firestore.FieldValue.serverTimestamp(),
                 });
-
-                const sellerSnap = await transaction.get(sellerRef);
-                const seller = sellerSnap.data();
-                
-                // Track forfeiture inactivity
-                const newForfeitCount = (seller?.unansweredForfeitCount || 0) + 1;
-                const becomesInactive = newForfeitCount >= 3 && !seller?.isInactive;
 
                 // 2. Adjust Balances
                 transaction.update(buyerRef, {

@@ -1,10 +1,10 @@
 /* Blur zone behind chyron */
 .chyron-blur-zone {
     position: absolute;
-    bottom: 68px;
+    bottom: 55px;
     left: 0;
     right: 0;
-    height: 56px;
+    height: 45px;
     backdrop-filter: blur(4px);
     z-index: 999;
     background: linear-gradient(to top, rgba(0, 0, 0, 0.4), transparent);
@@ -14,10 +14,10 @@
 /* Scrolling Chyron Container */
 .chyron-container {
     position: absolute;
-    bottom: 76px;
+    bottom: 62px;
     left: 0;
     right: 0;
-    height: 40px;
+    height: 32px;
     background: rgba(15, 23, 42, 0.6);
     border-top: 1px solid rgba(59, 130, 246, 0.3);
     border-bottom: 1px solid rgba(59, 130, 246, 0.3);
@@ -60,14 +60,14 @@
     margin-right: 40px;
     /* Space between messages */
     color: #e2e8f0;
-    font-size: 16px;
+    font-size: 13px;
     /* Increased for mobile readability */
     font-weight: 500;
 }
 
 .chyron-icon {
     margin-right: 8px;
-    font-size: 18px;
+    font-size: 15px;
     /* Slightly larger emoji */
 }
 
@@ -91,9 +91,9 @@
 
 /* Native app: lower chyron closer to bottom (no browser chrome) */
 body.native .chyron-blur-zone {
-    bottom: 28px;
+    bottom: 22px;
 }
 
 body.native .chyron-container {
-    bottom: 36px;
+    bottom: 29px;
 }

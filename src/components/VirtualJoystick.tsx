@@ -104,29 +104,29 @@ export function VirtualJoystick({ onMove }: VirtualJoystickProps) {
     return (
         <div 
             ref={baseRef}
-            className="relative w-28 h-28 rounded-full bg-slate-900/60 backdrop-blur-md border border-slate-700/50 shadow-2xl flex items-center justify-center touch-none pointer-events-auto"
+            className="relative w-[90px] h-[90px] rounded-full bg-slate-900/60 backdrop-blur-md border border-slate-700/50 shadow-2xl flex items-center justify-center touch-none pointer-events-auto"
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
         >
             {/* Background directional notches */}
-            <div className="absolute inset-0 rounded-full border-2 border-slate-800/30 m-3" />
-            <div className="absolute top-2 w-1.5 h-3 bg-white/20 rounded-full" />
-            <div className="absolute bottom-2 w-1.5 h-3 bg-white/20 rounded-full" />
-            <div className="absolute left-2 w-3 h-1.5 bg-white/20 rounded-full" />
-            <div className="absolute right-2 w-3 h-1.5 bg-white/20 rounded-full" />
+            <div className="absolute inset-0 rounded-full border-2 border-slate-800/30 m-2" />
+            <div className="absolute top-1.5 w-1 h-2.5 bg-white/20 rounded-full" />
+            <div className="absolute bottom-1.5 w-1 h-2.5 bg-white/20 rounded-full" />
+            <div className="absolute left-1.5 w-2.5 h-1 bg-white/20 rounded-full" />
+            <div className="absolute right-1.5 w-2.5 h-1 bg-white/20 rounded-full" />
             
             {/* The stick */}
             <div 
-                className="absolute w-12 h-12 rounded-full bg-slate-700/80 border border-slate-500/50 shadow-[0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center transition-transform"
+                className="absolute w-10 h-10 rounded-full bg-slate-700/80 border border-slate-500/50 shadow-[0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center transition-transform"
                 style={{ 
                     transform: `translate(${stickPos.x}px, ${stickPos.y}px)`,
                     transitionDuration: isDragging ? '0s' : '0.2s',
                     transitionTimingFunction: 'ease-out'
                 }}
             >
-                <div className="w-5 h-5 rounded-full bg-white/10 border border-white/5" />
+                <div className="w-4 h-4 rounded-full bg-white/10 border border-white/5" />
             </div>
         </div>
     );

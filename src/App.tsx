@@ -161,17 +161,17 @@ function App() {
     <div className="relative h-screen h-[100dvh] w-screen overflow-hidden bg-slate-900">
 
       {/* Top Controls: Offers & Profile/Stats Panel */}
-      <div className="absolute top-4 right-4 z-[2000] flex items-start gap-3 pointer-events-none">
+      <div className="absolute top-3 right-3 z-[2000] flex items-start gap-2 pointer-events-none">
 
         {/* Offers notification badge */}
         <button
           onClick={() => setShowOffersInbox(true)}
-          className="relative bg-slate-800 text-white p-3 rounded-full shadow-lg hover:bg-slate-700 transition-colors border-2 border-slate-700 pointer-events-auto active:scale-95"
+          className="relative bg-slate-800 text-white p-2 rounded-full shadow-lg hover:bg-slate-700 transition-colors border-2 border-slate-700 pointer-events-auto active:scale-95"
           title="Incoming Offers"
         >
-          <Bell className="w-6 h-6" />
+          <Bell className="w-5 h-5" />
           {pendingOffers.length > 0 && (
-            <span className="absolute -top-1 -right-1 bg-emerald-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-md border-2 border-slate-800">
+            <span className="absolute -top-1 -right-1 bg-emerald-500 text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full shadow-md border border-slate-800">
               {pendingOffers.length}
             </span>
           )}
