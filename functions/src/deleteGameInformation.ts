@@ -3,15 +3,15 @@ import * as admin from "firebase-admin";
 
 const db = admin.firestore();
 
-export const deleteGameInformation = functions.https.onCall(async (data: any, context: functions.https.CallableContext) => {
-    if (!context.auth) {
+export const deleteGameInformation = functions.https.onCall(async (request: any) => {
+    if (!request.auth) {
         throw new functions.https.HttpsError(
             'unauthenticated',
             'Must be authenticated.'
         );
     }
 
-    const uid = context.auth.uid;
+    const uid = request.auth.uid;
     const bulkWriter = db.bulkWriter();
 
     try {
