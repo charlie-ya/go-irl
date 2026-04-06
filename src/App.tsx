@@ -76,13 +76,16 @@ function App() {
 
   // Game Hooks (Only really active if we render consumers, but safe to call)
   // Load Exclusion Zones (Global/Regional)
-  const { zones } = useExclusionZones();
+  // (Moved below userLocation)
 
   const [hasAcknowledgedSafety, setHasAcknowledgedSafety] = useState(() => {
     return !!localStorage.getItem('safety_warning_seen');
   });
 
   const userLocation = useGeolocation(hasAcknowledgedSafety);
+  
+  // Load Exclusion Zones (Global/Regional)
+  const { zones } = useExclusionZones(userLocation.lat ?? undefined, userLocation.lng ?? undefined);
   const {
     claims, player,
     claimSquare, makeOffer, acceptOffer, rejectOffer,

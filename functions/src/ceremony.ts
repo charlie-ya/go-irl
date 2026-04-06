@@ -9,7 +9,7 @@ type Rank = 'Lowly Vassal' | 'Minion' | 'Centurion';
  * completeCeremony — callable Cloud Function
  * Validates the ceremony has 9+ affirmations, then promotes the owner.
  */
-export const completeCeremony = functions.https.onCall(async (request) => {
+export const completeCeremony = functions.https.onCall(async (request: any) => {
     // 1. Auth check
     if (!request.auth) {
         throw new functions.https.HttpsError(

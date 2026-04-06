@@ -210,4 +210,6 @@ __exportStar(require("./unansweredOffers"), exports);
 __exportStar(require("./ceremony"), exports);
 __exportStar(require("./notifications"), exports);
 __exportStar(require("./playerActivity"), exports);
+__exportStar(require("./sacredZones"), exports);
+__exportStar(require("./deleteGameInformation"), exports);
 //# sourceMappingURL=index.js.map

@@ -27,42 +27,7 @@ export interface ExclusionZone {
 
 // --- Hardcoded Test Zones for verification ---
 // Used 32.0929, 34.7817 as center
-export const STATIC_ZONES: ExclusionZone[] = [
-    {
-        id: 'test-sacred-1',
-        name: 'Test Sacred Temple',
-        category: 'sacred',
-        type: 'point',
-        center: { lat: 32.0929, lng: 34.7817 },
-        radius: 20, // 20m buffer as requested
-        isPermanent: true,
-        isActive: true,
-        metadata: {
-            description: 'A place of worship with 20m buffer',
-            icon: '🕊️'
-        }
-    },
-    // Adding a polygon nearby for testing flexible boundaries
-    {
-        id: 'test-sovereign-1',
-        name: 'Test Restricted Zone',
-        category: 'sovereign',
-        type: 'polygon',
-        boundary: [
-            { lat: 32.0935, lng: 34.7820 },
-            { lat: 32.0935, lng: 34.7830 },
-            { lat: 32.0925, lng: 34.7830 },
-            { lat: 32.0925, lng: 34.7820 },
-            { lat: 32.0935, lng: 34.7820 } // Close loop
-        ],
-        isPermanent: true,
-        isActive: true,
-        metadata: {
-            description: 'Restricted area',
-            icon: '🛡️'
-        }
-    }
-];
+export const STATIC_ZONES: ExclusionZone[] = [];
 
 /**
  * Check if a point is inside any active exclusion zone

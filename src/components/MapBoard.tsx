@@ -211,8 +211,16 @@ export function MapBoard({ lat, lng, selectedGridKey, claims, exclusionZones, vi
                     type="fill"
                     paint={{
                         'fill-color': ['get', 'color'],
-                        'fill-opacity': 0.3,
-                        'fill-outline-color': ['get', 'color']
+                        'fill-opacity': 0.3
+                    }}
+                />
+                <Layer
+                    id="exclusion-zones-line"
+                    type="line"
+                    paint={{
+                        'line-color': ['get', 'color'],
+                        'line-width': 2,
+                        'line-opacity': 1
                     }}
                 />
                 {/* Exclusion Zone Icons/Labels */}
@@ -221,12 +229,18 @@ export function MapBoard({ lat, lng, selectedGridKey, claims, exclusionZones, vi
                     type="symbol"
                     minzoom={14}
                     layout={{
-                        'text-field': ['get', 'icon'],
-                        'text-size': 20,
-                        'text-allow-overlap': true
+                        'icon-image': [
+                            'match',
+                            ['get', 'category'],
+                            'sacred', 'emoji-sacred',
+                            'sovereign', 'emoji-sovereign',
+                            ''
+                        ],
+                        'icon-size': 0.8,
+                        'icon-allow-overlap': true
                     }}
                     paint={{
-                        'text-opacity': 0.8
+                        'icon-opacity': 0.9
                     }}
                 />
             </Source>
@@ -323,7 +337,7 @@ export function MapBoard({ lat, lng, selectedGridKey, claims, exclusionZones, vi
                     id="view-radius-line"
                     type="line"
                     paint={{
-                        'line-color': '#1e2f47ff',
+                        'line-color': '#1e2f47',
                         'line-width': 1.5,
                         'line-dasharray': [4, 4],
                         'line-opacity': 0.8

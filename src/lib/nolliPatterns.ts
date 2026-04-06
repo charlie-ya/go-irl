@@ -188,6 +188,45 @@ function drawGrassTuft(ctx: CanvasRenderingContext2D, x: number, y: number) {
 }
 
 /**
+ * Creates a rasterized version of an emoji for use as a Mapbox icon.
+ * This circumvents Mapbox's 65535 glyph limit for unicode emojis.
+ */
+export function createEmojiIcon(emoji: string, size: number = 32): {
+    width: number;
+    height: number;
+    data: Uint8ClampedArray;
+} {
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d')!;
+
+    // Slightly larger font to fill canvas
+    ctx.font = `${Math.floor(size * 0.7)}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    // Draw white halo for contrast (combining strong shadow and stroke for all-browser compatibility)
+    ctx.shadowColor = '#FFFFFF';
+    ctx.shadowBlur = 4;
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 6;
+    ctx.lineJoin = 'round';
+    
+    // Draw multiple times to ensure full opacity
+    for (let i = 0; i < 3; i++) {
+        ctx.strokeText(emoji, size / 2, size / 2 + 2); // +2px y-offset hack for vertical alignment
+    }
+    
+    // Clear shadow for crisp emoji center
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.fillText(emoji, size / 2, size / 2 + 2);
+
+    return ctx.getImageData(0, 0, size, size);
+}
+
+/**
  * Register all Nolli patterns on a Mapbox map instance.
  * Call this in the map's `onLoad` handler.
  */
@@ -210,5 +249,15 @@ export function registerNolliPatterns(map: mapboxgl.Map) {
     if (!map.hasImage('nolli-agriculture')) {
         const agri = createAgriculturePattern();
         map.addImage('nolli-agriculture', agri, { sdf: false });
+    }
+
+    if (!map.hasImage('emoji-sacred')) {
+        const icon = createEmojiIcon('🙏', 36);
+        map.addImage('emoji-sacred', icon, { sdf: false });
+    }
+
+    if (!map.hasImage('emoji-sovereign')) {
+        const icon = createEmojiIcon('🛡️', 36);
+        map.addImage('emoji-sovereign', icon, { sdf: false });
     }
 }

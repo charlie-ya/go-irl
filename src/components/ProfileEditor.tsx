@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { X, Users } from 'lucide-react';
+import { X, Users, AlertTriangle } from 'lucide-react';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { ReferralPanel } from './ReferralPanel';
 import { ColorPicker } from './ColorPicker';
 
@@ -16,6 +17,7 @@ export function ProfileEditor({ currentName, currentColor, playerId, onSave, onC
     const [color, setColor] = useState(currentColor || '#FF1744');
     const [error, setError] = useState('');
     const [showReferrals, setShowReferrals] = useState(false);
+    const [isDeletingData, setIsDeletingData] = useState(false);
 
     const validateName = (name: string): boolean => {
         if (name.length < 3) {
@@ -44,6 +46,27 @@ export function ProfileEditor({ currentName, currentColor, playerId, onSave, onC
         }
 
         onSave(explorerName, color);
+    };
+
+    const handleDeleteGameData = async () => {
+        const confirmMsg = "Are you sure you want to delete all your gameplay data? This will permanently wipe all your claimed grids, captured territories, and offers. Your rank will be reset to Lowly Vassal and your coins will be set to 100.\n\nThis action CANNOT be undone. Do you wish to proceed?";
+        if (window.confirm(confirmMsg)) {
+            setIsDeletingData(true);
+            try {
+                const functions = getFunctions();
+                const deleteGameInfo = httpsCallable(functions, 'deleteGameInformation');
+                await deleteGameInfo();
+                alert("Game information successfully deleted.");
+                onClose();
+                // Optionally reload to clear state, or just naturally let snapshot listeners sync
+                // Doing reload as requested to wipe client state instantly
+                window.location.reload();
+            } catch (error: any) {
+                console.error("Failed to delete game data:", error);
+                alert("Failed to delete game data: " + error.message);
+                setIsDeletingData(false);
+            }
+        }
     };
 
     return (
@@ -112,8 +135,20 @@ export function ProfileEditor({ currentName, currentColor, playerId, onSave, onC
                     </button>
                 </div>
 
-                {/* Account Deletion */}
-                <div className="border-t border-slate-600 pt-4 mt-2">
+                {/* Data & Account Deletion */}
+                <div className="border-t border-slate-600 pt-4 mt-2 space-y-3">
+                    <button
+                        onClick={handleDeleteGameData}
+                        disabled={isDeletingData}
+                        className="w-full py-3 px-4 bg-transparent border border-orange-500/50 hover:bg-orange-500/20 text-orange-400 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                    >
+                        <AlertTriangle className="w-5 h-5" />
+                        {isDeletingData ? 'Deleting Data...' : 'Delete Game Information'}
+                    </button>
+                    <p className="text-xs text-slate-400 text-center mb-4">
+                        Wipes all gameplay data without deleting your authentication account.
+                    </p>
+
                     <button
                         onClick={() => {
                             if (window.confirm("WARNING: Deleting your account is permanent. All associated territories will fade to Moribund. Are you completely sure you wish to delete your account?")) {

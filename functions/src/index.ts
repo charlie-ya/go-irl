@@ -8,7 +8,7 @@ const db = admin.firestore();
 type Rank = 'Lowly Vassal' | 'Minion' | 'Centurion';
 
 // Checks for v2 signature where first argument is the Request object
-export const requestPromotion = functions.https.onCall(async (request) => {
+export const requestPromotion = functions.https.onCall(async (request: any) => {
     // 1. Authentication Check
     if (!request.auth) {
         throw new functions.https.HttpsError(
@@ -95,7 +95,7 @@ export const requestPromotion = functions.https.onCall(async (request) => {
 // ============================================================
 const LEADERBOARD_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-export const getNeighborhoodLeaderboard = functions.https.onCall(async (request) => {
+export const getNeighborhoodLeaderboard = functions.https.onCall(async (request: any) => {
     if (!request.auth) {
         throw new functions.https.HttpsError(
             'unauthenticated',
@@ -247,3 +247,5 @@ export * from './unansweredOffers';
 export * from './ceremony';
 export * from './notifications';
 export * from './playerActivity';
+export * from './sacredZones';
+export * from './deleteGameInformation';

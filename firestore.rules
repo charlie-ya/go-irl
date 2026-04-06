@@ -60,6 +60,12 @@ service cloud.firestore {
       allow write: if false; // Only Admin SDK or Cloud Functions can write exclusion zones
     }
 
+    // Scanned Regions tracking
+    match /scannedRegions/{regionId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // Leaderboard cache (written by Cloud Functions, readable by all)
     match /leaderboards/{boardId} {
       allow read: if true;
