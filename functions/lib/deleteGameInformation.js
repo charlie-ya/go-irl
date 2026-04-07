@@ -4,11 +4,11 @@ exports.deleteGameInformation = void 0;
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const db = admin.firestore();
-exports.deleteGameInformation = functions.https.onCall(async (data, context) => {
-    if (!context.auth) {
+exports.deleteGameInformation = functions.https.onCall(async (request) => {
+    if (!request.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated.');
     }
-    const uid = context.auth.uid;
+    const uid = request.auth.uid;
     const bulkWriter = db.bulkWriter();
     try {
         // 1. Delete all user tiles

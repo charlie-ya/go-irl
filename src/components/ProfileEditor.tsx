@@ -135,6 +135,20 @@ export function ProfileEditor({ currentName, currentColor, playerId, onSave, onC
                     </button>
                 </div>
 
+                {/* Invite Friends */}
+                <div className="border-t border-slate-600 pt-4 mt-2">
+                    <button
+                        onClick={() => setShowReferrals(true)}
+                        className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                    >
+                        <Users className="w-5 h-5" />
+                        Invite Friends — Earn Coins
+                    </button>
+                    <p className="text-xs text-slate-400 text-center mt-2">
+                        It's more fun when your friends are playing too.
+                    </p>
+                </div>
+
                 {/* Data & Account Deletion */}
                 <div className="border-t border-slate-600 pt-4 mt-2 space-y-3">
                     <button
@@ -172,17 +186,6 @@ export function ProfileEditor({ currentName, currentColor, playerId, onSave, onC
                         className="w-full py-3 px-4 bg-transparent border border-red-500/50 hover:bg-red-500/20 text-red-500 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all"
                     >
                         Delete Account Permanently
-                    </button>
-                </div>
-
-                {/* Invite Friends */}
-                <div className="border-t border-slate-600 pt-4">
-                    <button
-                        onClick={() => setShowReferrals(true)}
-                        className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-                    >
-                        <Users className="w-5 h-5" />
-                        Invite Friends — Earn Coins
                     </button>
                 </div>
             </div>
