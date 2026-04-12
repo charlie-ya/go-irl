@@ -11,7 +11,7 @@ export function NotificationOptInPrompt({ isOpen, onAccept, onDismiss }: Notific
 
     return (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
-            <div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm border border-emerald-500/30 overflow-hidden animate-in zoom-in-95">
+            <div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm border border-emerald-500/30 overflow-hidden max-h-[90vh] overflow-y-auto animate-in zoom-in-95">
                 <div className="bg-gradient-to-r from-emerald-600 to-teal-700 p-6 flex flex-col items-center text-center relative">
                     <button 
                         onClick={onDismiss}

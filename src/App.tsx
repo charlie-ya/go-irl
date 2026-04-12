@@ -385,7 +385,7 @@ function App() {
       {/* Ascend Dialog Overlay (Global) */}
       {showAscendDialog && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[3000] p-6 pointer-events-auto">
-          <div className="bg-slate-800/95 rounded-2xl p-6 max-w-sm w-full border border-amber-500/30 shadow-2xl">
+          <div className="bg-slate-800/95 rounded-2xl p-6 max-w-sm w-full border border-amber-500/30 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="text-center">
               <div className="text-4xl mb-3">👑</div>
               <h2 className="text-xl font-bold text-white mb-2">Ascend to New Rank</h2>
@@ -458,7 +458,7 @@ function App() {
         activeCeremony.ownerId === player.id || activeCeremony.affirmations.includes(player.id)
       ) && (
           <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-[5000] p-6 animate-in fade-in duration-500">
-            <div className="text-center max-w-sm">
+            <div className="text-center max-w-sm max-h-[90vh] overflow-y-auto">
               <div className="text-6xl mb-4 animate-bounce">🎉</div>
               <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-300 mb-3">
                 {activeCeremony.ownerId === player.id ? 'You Ascended!' : `${activeCeremony.ownerName} Ascended!`}

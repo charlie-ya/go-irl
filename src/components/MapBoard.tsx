@@ -1,4 +1,5 @@
 import { useRef, useEffect, useMemo } from 'react';
+import mapboxgl from 'mapbox-gl';
 import Map, { Source, Layer, Marker, NavigationControl } from 'react-map-gl/mapbox';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { getGridKey, getGridSquareBounds } from '../lib/gridSystem';
@@ -9,6 +10,11 @@ import { registerNolliPatterns } from '../lib/nolliPatterns';
 import { getExclusionZonesGeoJSON, type ExclusionZone } from '../lib/exclusionZones';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+
+// Set token globally to ensure Mapcore/WebKit can handle sprite/tile decoding early
+if (MAPBOX_TOKEN) {
+    mapboxgl.accessToken = MAPBOX_TOKEN;
+}
 
 /** Generate a GeoJSON circle polygon using basic trig (no turf dependency) */
 function createCircleGeoJSON(centerLat: number, centerLng: number, radiusMeters: number, steps = 64) {
@@ -190,17 +196,32 @@ export function MapBoard({ lat, lng, selectedGridKey, claims, exclusionZones, vi
             preserveDrawingBuffer={true}
             ref={mapRef}
             initialViewState={initialViewState}
-            style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}
+            style={{ 
+                width: '100%', 
+                height: '100%', 
+                position: 'absolute', 
+                top: 0, 
+                left: 0,
+                background: '#ffffff', // Confirm container is rendering white (vs black stall)
+                overflow: 'hidden'
+            }}
             mapStyle={NOLLI_MAP_STYLE}
             mapboxAccessToken={MAPBOX_TOKEN}
             minZoom={15}
             maxZoom={20}
             onLoad={(e) => {
-                console.log("Map Loaded");
+                console.log("[MapBoard] Map Style Loaded Successfully");
                 registerNolliPatterns(e.target as any);
                 onMapReady?.(e.target as any);
             }}
-            onError={(e) => console.error("Map Error:", e)}
+            onError={(e) => {
+                console.error("[MapBoard] Map Rendering Error:", e);
+                // Specifically check for decoding or resource errors
+                if (e.error?.message) console.error("[MapBoard] Error Detail:", e.error.message);
+            }}
+            onStyleData={(e) => {
+                if (e.dataType === 'style') console.log("[MapBoard] Style Metadata Received");
+            }}
         >
             <NavigationControl position="top-right" />
 

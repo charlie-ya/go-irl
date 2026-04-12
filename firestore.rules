@@ -15,24 +15,28 @@ service cloud.firestore {
       // UPDATE (own profile): Full update, but rank is server-only
       allow update: if request.auth != null
                     && request.auth.uid == userId
-                    && request.resource.data.rank == resource.data.rank;
+                    && request.resource.data.get('rank', 'Lowly Vassal') == resource.data.get('rank', 'Lowly Vassal');
 
       // UPDATE (other player - offer/trade only): Only balance & totalClaims may change
       // This allows the seller's transaction to credit/debit the buyer's coins.
       allow update: if request.auth != null
                     && request.auth.uid != userId
-                    && request.resource.data.rank == resource.data.rank
-                    && request.resource.data.explorerName == resource.data.explorerName
-                    && request.resource.data.color == resource.data.color
-                    && request.resource.data.id == resource.data.id;
+                    && request.resource.data.get('rank', 'Lowly Vassal') == resource.data.get('rank', 'Lowly Vassal')
+                    && request.resource.data.get('explorerName', '') == resource.data.get('explorerName', '')
+                    && request.resource.data.get('color', '') == resource.data.get('color', '')
+                    && request.resource.data.get('id', '') == resource.data.get('id', '');
     }
     
     // Tiles collection - authenticated users can claim tiles
     match /tiles/{tileId} {
       allow read: if true; // Anyone can read tiles
       allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid; // Authenticated users can claim
-      allow update, delete: if request.auth != null && 
-                               resource.data.ownerId == request.auth.uid; // Only owner can modify
+      // Allow the original owner to modify, OR a new owner via buy/moribund flow
+      allow update: if request.auth != null && (
+                         resource.data.ownerId == request.auth.uid || 
+                         request.resource.data.ownerId == request.auth.uid
+                     );
+      allow delete: if request.auth != null && resource.data.ownerId == request.auth.uid; // Only owner can delete
     }
     
     // Offers collection - users can make offers on tiles
