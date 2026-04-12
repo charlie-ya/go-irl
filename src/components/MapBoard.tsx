@@ -199,11 +199,11 @@ export function MapBoard({ lat, lng, selectedGridKey, claims, exclusionZones, vi
             preserveDrawingBuffer={true}
             ref={mapRef}
             initialViewState={initialViewState}
-            style={{ 
-                width: '100%', 
-                height: '100%', 
-                position: 'absolute', 
-                top: 0, 
+            style={{
+                width: '100%',
+                height: '100%',
+                position: 'absolute',
+                top: 0,
                 left: 0,
                 background: '#ffffff', // Confirm container is rendering white (vs black stall)
                 overflow: 'hidden'
@@ -222,7 +222,7 @@ export function MapBoard({ lat, lng, selectedGridKey, claims, exclusionZones, vi
                 // Check for detailed error messages in the event object
                 const detail = (e as any).error?.message || (e as any).message || "No specific message";
                 console.error("[MapBoard] Error Detail:", detail);
-                
+
                 if (detail.includes("401") || detail.includes("Unauthorized")) {
                     console.error("[MapBoard] AUTH FAILURE: Check your Mapbox Token domain restrictions.");
                 }
