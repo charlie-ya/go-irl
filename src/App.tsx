@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { APP_VERSION } from './lib/constants';
-import { MapBoard } from './components/MapBoard';
+import { WorldMap as MapBoard } from './components/MapBoard';
 import { Controls } from './components/Controls';
 import { Login } from './components/Login';
 import { Onboarding } from './components/Onboarding';
