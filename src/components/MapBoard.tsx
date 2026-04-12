@@ -11,6 +11,9 @@ import { getExclusionZonesGeoJSON, type ExclusionZone } from '../lib/exclusionZo
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
+// Token Debug Log
+console.log("[MapBoard] Using Token:", MAPBOX_TOKEN ? `${MAPBOX_TOKEN.substring(0, 10)}...` : "UNDEFINED / MISSING!");
+
 // Set token globally to ensure Mapcore/WebKit can handle sprite/tile decoding early
 if (MAPBOX_TOKEN) {
     mapboxgl.accessToken = MAPBOX_TOKEN;
@@ -215,12 +218,24 @@ export function MapBoard({ lat, lng, selectedGridKey, claims, exclusionZones, vi
                 onMapReady?.(e.target as any);
             }}
             onError={(e) => {
-                console.error("[MapBoard] Map Rendering Error:", e);
-                // Specifically check for decoding or resource errors
-                if (e.error?.message) console.error("[MapBoard] Error Detail:", e.error.message);
+                console.error("[MapBoard] Map Rendering Error Instance:", e);
+                // Check for detailed error messages in the event object
+                const detail = (e as any).error?.message || (e as any).message || "No specific message";
+                console.error("[MapBoard] Error Detail:", detail);
+                
+                if (detail.includes("401") || detail.includes("Unauthorized")) {
+                    console.error("[MapBoard] AUTH FAILURE: Check your Mapbox Token domain restrictions.");
+                }
             }}
             onStyleData={(e) => {
-                if (e.dataType === 'style') console.log("[MapBoard] Style Metadata Received");
+                if (e.dataType === 'style') {
+                    console.log("[MapBoard] Style Metadata Received - Map is starting to paint.");
+                }
+            }}
+            onSourceData={(e) => {
+                if (e.dataType === 'source' && e.isSourceLoaded) {
+                    console.log(`[MapBoard] Source Loaded: ${e.sourceId}`);
+                }
             }}
         >
             <NavigationControl position="top-right" />
