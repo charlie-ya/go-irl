@@ -56,6 +56,7 @@ function App() {
     // Lock text zoom on native devices
     if (Capacitor.isNativePlatform()) {
       document.body.classList.add('native');
+      alert("App.tsx is Loading - Build Success!");
       TextZoom.set({ value: 1.0 }).catch((err: any) =>
         console.warn('Failed to set TextZoom', err)
       );
