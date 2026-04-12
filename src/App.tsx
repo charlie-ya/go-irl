@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { APP_VERSION } from './lib/constants';
-import { WorldMap as MapBoard } from './components/MapBoard';
+import { MapBoard } from './components/MapBoard';
 import { Controls } from './components/Controls';
 import { Login } from './components/Login';
 import { Onboarding } from './components/Onboarding';
@@ -56,7 +56,6 @@ function App() {
     // Lock text zoom on native devices
     if (Capacitor.isNativePlatform()) {
       document.body.classList.add('native');
-      alert("App.tsx is Loading - Build Success!");
       TextZoom.set({ value: 1.0 }).catch((err: any) =>
         console.warn('Failed to set TextZoom', err)
       );

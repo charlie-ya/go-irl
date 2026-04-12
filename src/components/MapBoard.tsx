@@ -11,15 +11,6 @@ import { getExclusionZonesGeoJSON, type ExclusionZone } from '../lib/exclusionZo
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
-// Aggressive Diagnostic Alert
-if (typeof window !== 'undefined') {
-    const status = MAPBOX_TOKEN ? `Token exists (${MAPBOX_TOKEN.substring(0, 5)}...)` : 'TOKEN MISSING';
-    console.log(`[MapBoard] DIAGNOSTIC: ${status}`);
-    if (window.location.protocol === 'capacitor:' || window.location.protocol === 'app:') {
-        alert(`MapBoard File Loaded. ${status}`);
-    }
-}
-
 // Set token globally to ensure Mapcore/WebKit can handle sprite/tile decoding early
 if (MAPBOX_TOKEN) {
     mapboxgl.accessToken = MAPBOX_TOKEN;
@@ -51,7 +42,7 @@ interface MapBoardProps {
     onMapReady?: (map: mapboxgl.Map) => void;
 }
 
-export function WorldMap({ lat, lng, selectedGridKey, claims, exclusionZones, viewRadiusMeters = 200, onMapReady }: MapBoardProps) {
+export function MapBoard({ lat, lng, selectedGridKey, claims, exclusionZones, viewRadiusMeters = 200, onMapReady }: MapBoardProps) {
     const mapRef = useRef<any>(null);
 
     // Initial View State — only computed once GPS coords are valid
@@ -192,14 +183,10 @@ export function WorldMap({ lat, lng, selectedGridKey, claims, exclusionZones, vi
     // Early return AFTER all hooks — wait for valid GPS before mounting map
     // This ensures initialViewState is always set to the real user location
     if (lat === null || lng === null) {
-        if (typeof window !== 'undefined' && (window.location.protocol === 'capacitor:' || window.location.protocol === 'app:')) {
-            alert("WorldMap: EXPLICIT NULL GPS DETECTED");
-        }
         return (
             <div className="flex items-center justify-center h-full w-full bg-slate-900 text-white flex-col gap-3">
                 <div className="w-8 h-8 border-4 border-blue-400 border-t-transparent rounded-full animate-spin" />
-                <div className="text-slate-100 font-bold text-lg animate-pulse">!!! WAITING FOR GPS !!!</div>
-                <div className="text-slate-500 text-xs">If this stays, check iPad Settings &gt; Privacy &gt; Location</div>
+                <div className="text-slate-400 text-sm">Locating...</div>
             </div>
         );
     }
@@ -215,8 +202,6 @@ export function WorldMap({ lat, lng, selectedGridKey, claims, exclusionZones, vi
                 position: 'absolute',
                 top: 0,
                 left: 0,
-                background: '#0000FF', // BRIGHT BLUE fallback
-                border: '10px solid #FF0000', // THICK RED BORDER
                 overflow: 'hidden'
             }}
             mapStyle={NOLLI_MAP_STYLE}
