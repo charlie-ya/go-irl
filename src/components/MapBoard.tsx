@@ -199,7 +199,7 @@ export function WorldMap({ lat, lng, selectedGridKey, claims, exclusionZones, vi
             <div className="flex items-center justify-center h-full w-full bg-slate-900 text-white flex-col gap-3">
                 <div className="w-8 h-8 border-4 border-blue-400 border-t-transparent rounded-full animate-spin" />
                 <div className="text-slate-100 font-bold text-lg animate-pulse">!!! WAITING FOR GPS !!!</div>
-                <div className="text-slate-500 text-xs">If this stays, check iPad Settings > Privacy > Location</div>
+                <div className="text-slate-500 text-xs">If this stays, check iPad Settings &gt; Privacy &gt; Location</div>
             </div>
         );
     }
