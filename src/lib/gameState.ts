@@ -12,6 +12,9 @@ import { applyReferralCode, checkAndAwardReferralMilestones } from './referralSe
 
 import { isPointInExcludedZone, type ExclusionZone } from './exclusionZones';
 
+// Dev-only logging — no-ops in production builds so debug noise is stripped.
+const devLog = import.meta.env.PROD ? () => {} : console.log.bind(console);
+
 
 export interface Tile {
     ownerId: string;
@@ -88,7 +91,7 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
 
         // Skip tile loading if moving too fast (in vehicle)
         if (isMovingTooFast) {
-            console.log('⚠️ Pausing tile loading - user moving too fast (likely in vehicle)');
+            devLog('⚠️ Pausing tile loading - user moving too fast (likely in vehicle)');
             return;
         }
 
@@ -214,10 +217,10 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                         const snapshotTiles = await getCountFromServer(qTiles);
                         const actualClaims = snapshotTiles.data().count;
 
-                        console.log(`[DEBUG] VerifyStats: User ${uid} has ${actualClaims} tiles (Actual) vs ${data.totalClaims} (Profile)`);
+                        devLog(`[DEBUG] VerifyStats: User ${uid} has ${actualClaims} tiles (Actual) vs ${data.totalClaims} (Profile)`);
 
                         if (data.totalClaims !== actualClaims) {
-                            console.log(`Fixing totalClaims: ${data.totalClaims} -> ${actualClaims}`);
+                            devLog(`Fixing totalClaims: ${data.totalClaims} -> ${actualClaims}`);
                             updates.totalClaims = actualClaims;
                         }
 
@@ -234,7 +237,7 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                         });
 
                         if (data.totalCaptured !== actualCapturedTiles) {
-                            console.log(`Fixing totalCaptured: ${data.totalCaptured} -> ${actualCapturedTiles}`);
+                            devLog(`Fixing totalCaptured: ${data.totalCaptured} -> ${actualCapturedTiles}`);
                             updates.totalCaptured = actualCapturedTiles;
                         }
 
@@ -256,7 +259,7 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                 // Self-Healing: Backfill missing rank
                 if (!data.rank) {
                     try {
-                        console.log("Backfilling missing profile data...");
+                        devLog("Backfilling missing profile data...");
                         await updateDoc(playerRef, {
                             rank: 'Lowly Vassal'
                         });
@@ -286,7 +289,7 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
             // 2. Check if sync needed (Naive check: count mismatch)
             // Note: player.totalClaims is the source of truth for "how many I own"
             if (player.totalClaims !== undefined && localCount !== player.totalClaims) {
-                console.log(`[TileStorage] Syncing... Local: ${localCount}, Remote: ${player.totalClaims}`);
+                devLog(`[TileStorage] Syncing... Local: ${localCount}, Remote: ${player.totalClaims}`);
 
                 // Fetch ALL my tiles from Firestore (Expensive but rare)
                 const q = query(collection(db, "tiles"), where("ownerId", "==", auth.currentUser!.uid));
@@ -298,9 +301,9 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
 
                 // Update Cache
                 await TileStorage.syncTiles(remoteTiles);
-                console.log(`[TileStorage] Synced ${Object.keys(remoteTiles).length} tiles.`);
+                devLog(`[TileStorage] Synced ${Object.keys(remoteTiles).length} tiles.`);
             } else {
-                console.log(`[TileStorage] Cache is up to date (${localCount} tiles).`);
+                devLog(`[TileStorage] Cache is up to date (${localCount} tiles).`);
             }
         };
 
@@ -386,8 +389,9 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                         alert(`🚫 ${limitType} speed exceeded! (${Math.round(speedKmh)} km/h). Slow down to claim.`);
                         return { bonus: 0, capturedCount: 0 };
                     } else {
-                        // DISABLED FOR TESTING: Long distance travel limit (200km/h)
-                        console.log(`[TESTING] Travel speed limit bypassed: ${Math.round(speedKmh)} km/h (Limit: ${maxSpeed})`);
+                        // Long distance travel limit (200km/h) — blocks GPS spoofing across cities
+                        alert(`🚫 ${limitType} speed exceeded! (${Math.round(speedKmh)} km/h). Please wait before claiming in a new area.`);
+                        return { bonus: 0, capturedCount: 0 };
                     }
                 }
             }
@@ -435,7 +439,7 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
             allUserClaims[gridKey] = newTile;
 
             const enclosedAreas = findEnclosedAreas(allUserClaims, player.id);
-            console.log(`[DEBUG] Territory Calc: Found ${enclosedAreas.length} enclosed areas (Scanned ${Object.keys(allUserClaims).length} tiles).`);
+            devLog(`[DEBUG] Territory Calc: Found ${enclosedAreas.length} enclosed areas (Scanned ${Object.keys(allUserClaims).length} tiles).`);
 
             // --- PERMANENT CAPTURE: Diff against existing territories ---
             // Build fingerprints of existing territories (from React state / Firestore listener)
@@ -460,7 +464,7 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                 (sum, area) => sum + calculateCaptureBonus(area.enclosedSquares), 0
             );
 
-            console.log(`[DEBUG] Permanent Capture: ${newTerritories.length} new territories (${newCapturedTileCount} new tiles, +${captureBonus} bonus coins). ${territories.length} existing territories unchanged.`);
+            devLog(`[DEBUG] Permanent Capture: ${newTerritories.length} new territories (${newCapturedTileCount} new tiles, +${captureBonus} bonus coins). ${territories.length} existing territories unchanged.`);
 
             await runTransaction(db, async (transaction) => {
                 // 1. Safety Check: Ensure tile is still unclaimed

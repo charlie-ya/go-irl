@@ -249,3 +249,4 @@ export * from './notifications';
 export * from './playerActivity';
 export * from './sacredZones';
 export * from './deleteGameInformation';
+export * from './verifyPurchase';

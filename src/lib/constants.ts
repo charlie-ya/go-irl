@@ -1,1 +1,1 @@
-export const APP_VERSION = 'v1.1.0-fix-claim';
+export const APP_VERSION = 'v1.0.0';

@@ -15,23 +15,57 @@ interface ScoringChyronProps {
     userLat: number | null;
     userLng: number | null;
     myId?: string;
-    blockLeader?: string; // Explorer name of the #1 player on the block
+    blockLeader?: string;
     isBlockLeaderMe?: boolean;
+    tilesCount: number;
+    territoriesCount: number;
 }
 
-const DEFAULT_MESSAGES: ChyronMessage[] = [
-    { id: 'tut_01', type: 'tutorial', icon: '💡', content: 'Tip: Enclose an area to capture territory!', priority: 1 },
-    { id: 'tut_02', type: 'tutorial', icon: '🏃', content: 'Tip: Move around to discover new tiles!', priority: 1 },
-    { id: 'tut_03', type: 'tutorial', icon: '🏃', content: 'Sorry, couch potatoes, you have to get up to play!', priority: 1 },
-    { id: 'tut_04', type: 'tutorial', icon: '👑', content: 'Tip: Lead your block by claiming more land!', priority: 1 },
-    { id: 'tut_05', type: 'tutorial', icon: '💰', content: 'Tip: Capture territory to earn bonus coins!', priority: 1 },
-    { id: 'tut_06', type: 'tutorial', icon: '🏃', content: 'Tip: Standing on someone else\'s square? Make an offer!', priority: 1 },
-];
+// Tiered chyron messages by player progression.
+// Beginners see coaching tips; experienced players see general tips.
+function getDefaultMessages(tilesCount: number, territoriesCount: number): ChyronMessage[] {
+    if (tilesCount === 0) return [
+        { id: 'new_01', type: 'tutorial', icon: '👣', content: 'Step outside and tap CLAIM to grab your first square!', priority: 1 },
+        { id: 'new_02', type: 'tutorial', icon: '🗺️', content: 'Walk around your neighbourhood to build your empire!', priority: 1 },
+    ];
+    if (tilesCount === 1) return [
+        { id: 'first_01', type: 'tutorial', icon: '✅', content: 'First square claimed! Now walk to a new spot and claim another.', priority: 1 },
+        { id: 'first_02', type: 'tutorial', icon: '🏃', content: 'Each claim needs your real-world footsteps — you can\'t claim standing still!', priority: 1 },
+    ];
+    if (tilesCount < 5) return [
+        { id: 'early_01', type: 'tutorial', icon: '🏃', content: 'Keep walking! Claim squares in a ring to capture territory for bonus coins.', priority: 1 },
+        { id: 'early_02', type: 'tutorial', icon: '💡', content: 'Tip: A connected loop of your squares captures the area inside!', priority: 1 },
+        { id: 'early_03', type: 'tutorial', icon: '💰', content: 'Captures earn you bonus coins — the bigger the loop, the bigger the reward!', priority: 1 },
+    ];
+    if (tilesCount >= 5 && territoriesCount === 0) return [
+        { id: 'cap_01', type: 'tutorial', icon: '🎯', content: 'Ready for a capture? Walk your claims in a loop — the inside fills automatically!', priority: 1 },
+        { id: 'cap_02', type: 'tutorial', icon: '💡', content: 'Tip: Even a small 3×3 ring earns bonus coins when you close it!', priority: 1 },
+        { id: 'cap_03', type: 'tutorial', icon: '🏃', content: 'Keep moving and connect your squares into a closed perimeter to capture!', priority: 1 },
+    ];
+    // Experienced player — standard tip rotation
+    return [
+        { id: 'tut_01', type: 'tutorial', icon: '💡', content: 'Tip: Enclose an area to capture territory!', priority: 1 },
+        { id: 'tut_02', type: 'tutorial', icon: '🏃', content: 'Tip: Move around to discover new tiles!', priority: 1 },
+        { id: 'tut_03', type: 'tutorial', icon: '🏃', content: 'Sorry, couch potatoes, you have to get up to play!', priority: 1 },
+        { id: 'tut_04', type: 'tutorial', icon: '👑', content: 'Tip: Lead your block by claiming more land!', priority: 1 },
+        { id: 'tut_05', type: 'tutorial', icon: '💰', content: 'Tip: Capture territory to earn bonus coins!', priority: 1 },
+        { id: 'tut_06', type: 'tutorial', icon: '🏃', content: 'Tip: Standing on someone else\'s square? Make an offer!', priority: 1 },
+    ];
+}
 
-export function ScrollingChyron({ claims, userLat, userLng, myId, blockLeader, isBlockLeaderMe }: ScoringChyronProps) {
-    // Current list of messages to display in the loop
-    const [messages, setMessages] = useState<ChyronMessage[]>(DEFAULT_MESSAGES);
+export function ScrollingChyron({ claims, userLat, userLng, myId, blockLeader, isBlockLeaderMe, tilesCount, territoriesCount }: ScoringChyronProps) {
+    const [messages, setMessages] = useState<ChyronMessage[]>(() => getDefaultMessages(tilesCount, territoriesCount));
     const lastGridKeyRef = useRef<string | null>(null);
+
+    // Re-build base messages when player progression changes
+    useEffect(() => {
+        setMessages(prev => {
+            const base = getDefaultMessages(tilesCount, territoriesCount);
+            // Preserve any injected welcome/leader messages at the front
+            const injected = prev.filter(m => m.type === 'welcome' || m.id.startsWith('leader_'));
+            return [...injected, ...base];
+        });
+    }, [tilesCount, territoriesCount]);
 
     // Monitor location for Welcome messages
     useEffect(() => {

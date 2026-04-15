@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { APP_VERSION } from './lib/constants';
 import { MapBoard } from './components/MapBoard';
 import { Controls } from './components/Controls';
 import { Login } from './components/Login';
@@ -23,7 +22,6 @@ import { usePushNotifications } from './lib/usePushNotifications';
 import { useOffers, useMyOutgoingOffers } from './lib/useOffers';
 import { useBlockLeaderboard } from './lib/useBlockLeaderboard';
 import { useExclusionZones } from './lib/useExclusionZones';
-import { seedZones } from './lib/seedZones';
 import { auth, logout } from './lib/firebase';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
@@ -69,10 +67,6 @@ function App() {
 
   }, []);
 
-  // Expose seed function
-  useEffect(() => {
-    (window as any).seedZones = seedZones;
-  }, []);
 
   // Game Hooks (Only really active if we render consumers, but safe to call)
   // Load Exclusion Zones (Global/Regional)
@@ -281,6 +275,8 @@ function App() {
         myId={player?.id}
         blockLeader={blockBoard.entries[0]?.explorerName}
         isBlockLeaderMe={blockBoard.entries[0]?.isMe}
+        tilesCount={tilesCount}
+        territoriesCount={territoriesCount}
       />
 
       <Controls
@@ -320,6 +316,8 @@ function App() {
         myColor={player?.color || '#3b82f6'}
         myOutgoingOffers={myOutgoingOffers}
         claims={claims}
+        tilesCount={tilesCount}
+        territoriesCount={territoriesCount}
       />
 
       {/* Speed Warning Overlay */}
@@ -449,9 +447,6 @@ function App() {
         </div>
       )}
 
-      <div className="absolute bottom-1 right-1 text-slate-500 text-xs pointer-events-none z-[1000]">
-        {APP_VERSION}
-      </div>
 
       {/* Ceremony Success Celebration */}
       {activeCeremony?.status === 'completed' && (

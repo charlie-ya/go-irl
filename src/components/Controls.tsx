@@ -1,4 +1,4 @@
-import { Zap, Check, ShoppingCart, Shield } from 'lucide-react';
+import { Zap, Check, ShoppingCart, Shield, Footprints } from 'lucide-react';
 import React, { useState } from 'react';
 import { getGridKey } from '../lib/gridSystem';
 import { OfferModal } from './OfferModal';
@@ -37,13 +37,16 @@ interface ControlsProps {
     myColor: string;
     claims: Record<string, { ownerId: string; color: string; status?: string }>;
     myOutgoingOffers: Offer[];
+    tilesCount: number;
+    territoriesCount: number;
 }
 
 export function Controls({
     lat, lng, locationLoading, selectedGridKey, onOffsetChange,
     onClaim, onMakeOffer, userBalance, onGetCoins,
     onAffirm, onCompleteCeremony, activeCeremony, playerRank,
-    myId, myColor, claims, myOutgoingOffers
+    myId, myColor, claims, myOutgoingOffers,
+    tilesCount, territoriesCount
 }: ControlsProps) {
     const currentKey = locationLoading ? '...' : getGridKey(lat, lng);
     const activeKey = selectedGridKey || currentKey;
@@ -91,6 +94,15 @@ export function Controls({
                                     Claimed!
                                 </div>
                             </div>
+                            {/* Walk nudge: shown for the first 3 claims so users know to move */}
+                            {tilesCount <= 3 && (
+                                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-900/80 border border-indigo-500/40 mt-0.5 animate-in fade-in">
+                                    <Footprints className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
+                                    <span className="text-indigo-200 text-[11px] font-medium">
+                                        Walk to a new square to claim again!
+                                    </span>
+                                </div>
+                            )}
                         </>
                     ) : (
                         <div className="flex flex-col items-center gap-1.5 animate-in fade-in slide-in-from-bottom-2">
@@ -155,6 +167,18 @@ export function Controls({
             {/* Standard Claim/Offer Button */}
             {!isOwnedByMe && !isCapturedByOther && !myPendingOffer && (
                 <>
+                    {/* Capture hint: shown until user has made their first capture */}
+                    {tilesCount >= 5 && territoriesCount === 0 && (
+                        <div className="flex items-start gap-2.5 bg-amber-900/70 border border-amber-500/40 rounded-xl px-3 py-2 max-w-xs animate-in slide-in-from-bottom-2">
+                            <span className="text-amber-400 text-lg flex-shrink-0 mt-0.5">💡</span>
+                            <div>
+                                <p className="text-amber-200 text-xs font-semibold">Try a capture!</p>
+                                <p className="text-amber-300/80 text-[11px] leading-snug mt-0.5">
+                                    Walk your claimed squares into a connected loop — the enclosed area fills automatically for bonus coins.
+                                </p>
+                            </div>
+                        </div>
+                    )}
                     <button
                         onClick={() => {
                             if (isOwnedByOther) {

@@ -1,8 +1,122 @@
 import { useState, useEffect } from 'react';
 import { ColorPicker } from './ColorPicker';
 import { LegalLink } from './LegalLink';
-import { MapPin, User, ChevronDown } from 'lucide-react';
+import { MapPin, User, ChevronDown, BookOpen } from 'lucide-react';
 import { getReferralCodeFromURL } from '../lib/referralService';
+
+// --- Step 4 Illustrations ---
+
+/** Mini map grid showing: one claimed square, arrow, one "next" unclaimed square. */
+function WalkDiagram() {
+    const grid = [
+        [null, null, null, null],
+        [null, 'mine', 'next', null],
+        [null, null, null, null],
+        [null, null, null, null],
+    ];
+    return (
+        <div className="flex flex-col items-center gap-3">
+            <div
+                className="grid gap-0.5 p-2 bg-slate-900 rounded-xl border border-slate-700 shadow-inner"
+                style={{ gridTemplateColumns: 'repeat(4, 2.5rem)' }}
+            >
+                {grid.flat().map((cell, i) => {
+                    if (cell === 'mine') return (
+                        <div key={i} className="w-10 h-10 rounded-md bg-indigo-500 flex items-center justify-center text-white text-xs font-bold shadow-lg ring-2 ring-indigo-300">
+                            YOU
+                        </div>
+                    );
+                    if (cell === 'next') return (
+                        <div key={i} className="w-10 h-10 rounded-md border-2 border-dashed border-indigo-400 flex items-center justify-center animate-pulse">
+                            <span className="text-indigo-400 text-lg">→</span>
+                        </div>
+                    );
+                    return <div key={i} className="w-10 h-10 rounded-md bg-slate-800/60" />;
+                })}
+            </div>
+            <p className="text-slate-300 text-sm text-center leading-relaxed max-w-[240px]">
+                Each square you claim must be where you're <strong className="text-white">physically standing</strong>. Walk to the next square!
+            </p>
+        </div>
+    );
+}
+
+/** Mini map grid showing a ring of claimed squares with interior "captured" fill. */
+function CaptureDiagram() {
+    // 5×5 grid: 'ring' = perimeter claimed squares, 'fill' = captured interior, null = empty
+    const grid = [
+        [null,   null,   null,   null,   null  ],
+        [null,   'ring', 'ring', 'ring', null  ],
+        [null,   'ring', 'fill', 'ring', null  ],
+        [null,   'ring', 'ring', 'close',null  ],
+        [null,   null,   null,   null,   null  ],
+    ];
+
+    return (
+        <div className="flex flex-col items-center gap-3">
+            <div
+                className="grid gap-0.5 p-2 bg-slate-900 rounded-xl border border-slate-700 shadow-inner"
+                style={{ gridTemplateColumns: 'repeat(5, 2rem)' }}
+            >
+                {grid.flat().map((cell, i) => {
+                    if (cell === 'ring') return (
+                        <div key={i} className="w-8 h-8 rounded-sm bg-indigo-500 shadow" />
+                    );
+                    if (cell === 'fill') return (
+                        <div key={i} className="w-8 h-8 rounded-sm bg-indigo-300/60 animate-pulse" />
+                    );
+                    if (cell === 'close') return (
+                        <div key={i} className="w-8 h-8 rounded-sm bg-yellow-400 shadow-lg ring-2 ring-yellow-200 flex items-center justify-center text-yellow-900 text-[10px] font-black">
+                            ★
+                        </div>
+                    );
+                    return <div key={i} className="w-8 h-8 rounded-sm bg-slate-800/60" />;
+                })}
+            </div>
+            <p className="text-slate-300 text-sm text-center leading-relaxed max-w-[240px]">
+                Claim a <strong className="text-white">connected ring</strong> of squares. The enclosed area fills automatically earning you <strong className="text-yellow-400">bonus coins</strong>!
+            </p>
+        </div>
+    );
+}
+
+/** Step 4: two-panel how-to-play slide. */
+function HowToPlayStep() {
+    const [panel, setPanel] = useState<0 | 1>(0);
+    return (
+        <div className="space-y-4 text-center">
+            <div className="w-16 h-16 mx-auto bg-emerald-600 rounded-full flex items-center justify-center">
+                <BookOpen className="w-8 h-8 text-white" />
+            </div>
+            <h2 className="text-2xl font-bold text-white">How to Play</h2>
+
+            {/* Panel toggle tabs */}
+            <div className="flex rounded-lg overflow-hidden border border-slate-600 w-fit mx-auto">
+                {(['Walk & Claim', 'Capture']).map((label, idx) => (
+                    <button
+                        key={label}
+                        onClick={() => setPanel(idx as 0 | 1)}
+                        className={`px-4 py-1.5 text-sm font-semibold transition-colors ${
+                            panel === idx
+                                ? 'bg-indigo-600 text-white'
+                                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                        }`}
+                    >
+                        {label}
+                    </button>
+                ))}
+            </div>
+
+            <div className="flex justify-center py-2 min-h-[180px] items-center">
+                {panel === 0 ? <WalkDiagram /> : <CaptureDiagram />}
+            </div>
+
+            <p className="text-slate-500 text-xs">
+                {panel === 0 ? 'Tap "Capture" to see the next tip →' : '← Tap "Walk & Claim" to go back'}
+            </p>
+        </div>
+    );
+}
 
 interface OnboardingProps {
     onComplete: (explorerName: string, color: string, referralCode?: string) => void;
@@ -51,6 +165,8 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                 setStep(3);
             }
         } else if (step === 3) {
+            setStep(4);
+        } else if (step === 4) {
             onComplete(explorerName, color, referralCode || undefined);
         }
     };
@@ -64,7 +180,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
             <div className="max-w-md w-full bg-slate-800 rounded-2xl shadow-2xl p-6 sm:p-8 flex flex-col max-h-[90vh]">
                 {/* Progress Indicator — pinned top */}
                 <div className="flex gap-2 mb-4 flex-shrink-0">
-                    {[1, 2, 3].map((i) => (
+                    {[1, 2, 3, 4].map((i) => (
                         <div
                             key={i}
                             className={`h-2 flex-1 rounded-full transition-all ${i <= step ? 'bg-blue-500' : 'bg-slate-600'
@@ -163,6 +279,9 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                         </div>
                     )}
 
+                    {/* Step 4: How to Play */}
+                    {step === 4 && <HowToPlayStep />}
+
                     {/* Step 3: Choose Color */}
                     {step === 3 && (
                         <div className="space-y-6">
@@ -217,7 +336,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                         disabled={(step === 2 && explorerName.length < 3) || (step === 3 && !agreedLegal)}
                         className="flex-1 py-3 px-6 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        {step === 3 ? 'Start Exploring!' : 'Next'}
+                        {step === 4 ? 'Start Exploring! 🗺️' : 'Next'}
                     </button>
                 </div>
             </div>

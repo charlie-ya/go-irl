@@ -1,5 +1,6 @@
-import { X } from 'lucide-react';
-import { COIN_PACKS, purchasePack, type CoinPack } from '../lib/iapService';
+import { useState, useEffect } from 'react';
+import { X, Smartphone } from 'lucide-react';
+import { COIN_PACKS, purchasePack, getStorePrice, isIAPAvailable, type CoinPack } from '../lib/iapService';
 
 interface CoinShopProps {
     isOpen: boolean;
@@ -7,9 +8,34 @@ interface CoinShopProps {
 }
 
 export function CoinShop({ isOpen, onClose }: CoinShopProps) {
+    // true on iOS/Android native, false on web
+    const isNative = isIAPAvailable();
+
+    // Attempt to read localised prices from the native store catalog.
+    // Prices arrive asynchronously after CdvPurchase finishes loading.
+    const [storePrices, setStorePrices] = useState<Record<string, string>>({});
+
+    useEffect(() => {
+        if (!isOpen || !isNative) return;
+        const attempt = () => {
+            const prices: Record<string, string> = {};
+            let anyFound = false;
+            COIN_PACKS.forEach(p => {
+                const price = getStorePrice(p.productId);
+                if (price) { prices[p.productId] = price; anyFound = true; }
+            });
+            if (anyFound) setStorePrices(prices);
+        };
+        attempt();
+        const t1 = setTimeout(attempt, 2000);
+        const t2 = setTimeout(attempt, 5000);
+        return () => { clearTimeout(t1); clearTimeout(t2); };
+    }, [isOpen, isNative]);
+
     if (!isOpen) return null;
 
     const handlePurchase = async (pack: CoinPack) => {
+        if (!isNative) return; // no-op on web; button is disabled
         await purchasePack(pack.productId);
     };
 
@@ -27,13 +53,30 @@ export function CoinShop({ isOpen, onClose }: CoinShopProps) {
                     </button>
                 </div>
 
+                {/* Web-only callout */}
+                {!isNative && (
+                    <div className="flex items-start gap-3 bg-slate-700/60 border border-slate-600 rounded-xl px-4 py-3">
+                        <Smartphone className="w-5 h-5 text-slate-400 flex-shrink-0 mt-0.5" />
+                        <p className="text-slate-300 text-sm leading-snug">
+                            Coin purchases are available in the{' '}
+                            <strong className="text-white">iOS and Android apps</strong>.
+                            Download the app to buy coins.
+                        </p>
+                    </div>
+                )}
+
                 {/* Coin Packs */}
                 <div className="space-y-3">
                     {COIN_PACKS.map((pack) => (
                         <button
                             key={pack.productId}
                             onClick={() => handlePurchase(pack)}
-                            className="w-full relative bg-slate-700/80 hover:bg-slate-600/80 rounded-xl p-4 flex items-center justify-between border border-slate-600 transition-all active:scale-[0.98]"
+                            disabled={!isNative}
+                            className={`w-full relative rounded-xl p-4 flex items-center justify-between border transition-all
+                                ${isNative
+                                    ? 'bg-slate-700/80 hover:bg-slate-600/80 border-slate-600 active:scale-[0.98]'
+                                    : 'bg-slate-800/50 border-slate-700 opacity-50 cursor-not-allowed'
+                                }`}
                         >
                             {/* Badge */}
                             {pack.badge && (
@@ -61,9 +104,15 @@ export function CoinShop({ isOpen, onClose }: CoinShopProps) {
                                 </div>
                             </div>
 
-                            {/* Right: Price placeholder */}
-                            <div className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold px-4 py-2 rounded-lg text-sm">
-                                BUY
+                            {/* Right: Price or greyed-out label */}
+                            <div className={`font-bold px-4 py-2 rounded-lg text-sm
+                                ${isNative
+                                    ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white'
+                                    : 'bg-slate-600 text-slate-400'
+                                }`}>
+                                {isNative
+                                    ? (storePrices[pack.productId] ?? 'BUY')
+                                    : 'App Only'}
                             </div>
                         </button>
                     ))}
@@ -71,9 +120,12 @@ export function CoinShop({ isOpen, onClose }: CoinShopProps) {
 
                 {/* Footer */}
                 <div className="text-center text-slate-400 text-xs pt-2">
-                    🪙 Coins never expire • Instant delivery
+                    {isNative
+                        ? '🪙 Coins never expire • Instant delivery'
+                        : '📱 Download the app to purchase coins'}
                 </div>
             </div>
         </div>
     );
 }
+

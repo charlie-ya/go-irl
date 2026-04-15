@@ -1,16 +1,19 @@
 /**
- * IAP Service — Scaffolding for cordova-plugin-purchase.
+ * IAP Service — cordova-plugin-purchase integration.
  *
- * This module does NOT require cordova-plugin-purchase to be installed.
- * All calls are guarded behind availability checks. Once the plugin is 
- * installed and products are registered in Play Store / App Store,
- * the real purchase flow will activate automatically.
+ * Flow:
+ *   approved -> POST receipt to verifyPurchase Cloud Function -> server validates
+ *              with Apple/Google API and credits coins -> verified -> finish()
  */
 
 import { Capacitor } from '@capacitor/core';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 // Tell TypeScript the CdvPurchase global will be injected dynamically by Capacitor
 declare var CdvPurchase: any;
+
+// --- Dev-only logging (stripped in production builds) ---
+const log = import.meta.env.PROD ? () => {} : console.log.bind(console, '[IAP]');
 
 // --- Types ---
 
@@ -62,15 +65,32 @@ export function isIAPAvailable(): boolean {
     return Capacitor.isNativePlatform();
 }
 
-// --- Initialize (no-op for now) ---
+// --- Live price lookup ---
+
+/**
+ * Returns the localized price string for a product from the CdvPurchase store,
+ * e.g. "$0.99", "€3.49". Falls back to undefined if the store is not yet loaded
+ * or the product is not registered.
+ */
+export function getStorePrice(productId: string): string | undefined {
+    try {
+        if (typeof CdvPurchase === 'undefined') return undefined;
+        const product = CdvPurchase.store.get(productId);
+        // CdvPurchase v13 pricing — first offer's first pricingPhase
+        return product?.offers?.[0]?.pricingPhases?.[0]?.price ?? undefined;
+    } catch {
+        return undefined;
+    }
+}
+
+// --- Initialize ---
 
 export function initializeIAP(): void {
     if (!isIAPAvailable()) {
-        console.log('[IAP] Web platform — IAP disabled');
+        log('Web platform — IAP disabled');
         return;
     }
 
-    // Real CdvPurchase Registration
     if (typeof CdvPurchase === 'undefined') {
         console.warn('[IAP] CdvPurchase global not found. Ensure running on physical device.');
         return;
@@ -93,27 +113,51 @@ export function initializeIAP(): void {
         });
     });
 
-    // Logging & Error Handling
     store.error((err: any) => console.error('[IAP] Store Error:', err));
-    store.ready(() => console.log('[IAP] Native Store is fully initialized and products are loaded.'));
+    store.ready(() => log('Native store fully initialized.'));
 
-    // Approvals -> Trigger remote verify -> Finish
-    store.when().approved((transaction: any) => {
-        console.log('[IAP] Transaction Approved:', transaction);
-        // Note: For a live app, this must ping a Firebase Cloud Function with the receipt token.
-        // For now, we simulate success blindly across native platforms.
-        transaction.verify();
+    // --- Approved: send receipt to Cloud Function for server-side validation ---
+    store.when().approved(async (transaction: any) => {
+        log('Transaction approved — sending to server for verification:', transaction.transactionId);
+        try {
+            const functions = getFunctions();
+            const verifyPurchase = httpsCallable<
+                { receipt: string; productId: string; platform: string },
+                { success: boolean; coinsAwarded: number; message?: string }
+            >(functions, 'verifyPurchase');
+
+            const result = await verifyPurchase({
+                receipt: transaction.nativePurchase?.token
+                    ?? transaction.nativePurchase?.purchaseToken
+                    ?? transaction.transactionId,
+                productId: transaction.products?.[0]?.id ?? '',
+                platform: Capacitor.getPlatform(),
+            });
+
+            if (result.data.success) {
+                log('Server verified purchase — finishing transaction.');
+                transaction.verify(); // Triggers the verified() callback below
+            } else {
+                console.error('[IAP] Server rejected purchase:', result.data.message);
+                alert('Purchase could not be verified. Please contact support if coins are missing.');
+            }
+        } catch (e: any) {
+            console.error('[IAP] Cloud Function call failed:', e);
+            alert('Purchase verification failed. Your payment was not charged. Please try again.');
+        }
     });
 
+    // --- Verified: confirmation that server has credited coins ---
     store.when().verified((receipt: any) => {
-        console.log('[IAP] Receipt cryptographically verified:', receipt);
+        log('Receipt verified — finishing transaction.');
         receipt.finish();
-        alert('Thank you for your purchase! Coins will sync shortly.');
+        // The server has already credited coins via Firestore; the onSnapshot listener
+        // in gameState.ts will update the balance in real-time.
+        alert('Purchase successful! Your coins have been credited. 🪙');
     });
 
-    // Boot up
     store.initialize([Platform.APPLE_APPSTORE, Platform.GOOGLE_PLAY]);
-    console.log('[IAP] Native platform — Initiating store boot sequence...');
+    log('Initiating native store boot sequence...');
 }
 
 // --- Get Products ---
@@ -132,7 +176,7 @@ export async function purchasePack(productId: string): Promise<boolean> {
     }
 
     if (!isIAPAvailable()) {
-        console.log(`[IAP] Purchase not available on web: ${productId}`);
+        log(`Purchase not available on web: ${productId}`);
         alert('In-app purchases are only available in the mobile app.');
         return false;
     }
@@ -151,6 +195,7 @@ export async function purchasePack(productId: string): Promise<boolean> {
 
     // Trigger the actual native OS billing sheet
     CdvPurchase.store.order(product);
-    console.log(`[IAP] Triggering native OS billing sheet for ${productId} (${pack.coins} coins)`);
+    log(`Triggering native OS billing sheet for ${productId} (${pack.coins} coins)`);
     return true;
 }
+

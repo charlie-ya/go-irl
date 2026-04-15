@@ -2,6 +2,7 @@ import { db } from './firebase';
 import {
     collection, doc, setDoc, getDocs, getDoc, updateDoc, query, where, increment
 } from 'firebase/firestore';
+import { Capacitor } from '@capacitor/core';
 
 // --- Types ---
 
@@ -48,11 +49,23 @@ export function generateReferralCode(userId: string): string {
 
 // --- Share ---
 
+// Platform-aware base URL for referral links.
+// On native Capacitor, window.location.origin resolves to https://localhost which is unusable.
+const REFERRAL_WEB_URL = 'https://go-irl-443f4.web.app';
+const REFERRAL_APP_STORE_URL = 'https://apps.apple.com/app/roamin-empire/id6745786064';
+const REFERRAL_PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.goirl.app';
+
+function getReferralBaseUrl(): string {
+    if (Capacitor.getPlatform() === 'ios') return REFERRAL_APP_STORE_URL;
+    if (Capacitor.getPlatform() === 'android') return REFERRAL_PLAY_STORE_URL;
+    return REFERRAL_WEB_URL;
+}
+
 /**
  * Opens the native share sheet (or clipboard fallback) with the referral link.
  */
 export async function shareReferralLink(code: string, appUrl?: string): Promise<void> {
-    const baseUrl = appUrl || window.location.origin;
+    const baseUrl = appUrl || getReferralBaseUrl();
     const referralUrl = `${baseUrl}/?ref=${code}`;
     const shareData = {
         title: "Roamin' Empire",
