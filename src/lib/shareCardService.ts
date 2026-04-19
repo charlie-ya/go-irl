@@ -1,5 +1,4 @@
 import { generateReferralCode } from './referralService';
-import { Capacitor } from '@capacitor/core';
 
 // --- Types ---
 
@@ -106,18 +105,10 @@ export async function captureShareCard(
 
 // --- Share ---
 
-// Platform-aware share URL — returns the correct destination for each runtime context.
-// On native, link to the store listing so new users can install the app.
-// On web, link to Firebase Hosting so new users can start playing immediately.
-const WEB_URL = 'https://go-irl-443f4.web.app';
-const APP_STORE_URL = 'https://apps.apple.com/app/roamin-empire/id6745786064';
-const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.goirl.app';
-
-function getShareUrl(): string {
-    if (Capacitor.getPlatform() === 'ios') return APP_STORE_URL;
-    if (Capacitor.getPlatform() === 'android') return PLAY_STORE_URL;
-    return WEB_URL;
-}
+// Share links always use the web URL so recipients get a universal link that works
+// regardless of their platform (iOS, Android, desktop).
+// The web landing page detects the recipient's platform and shows the right store button.
+const SHARE_URL = 'https://go-irl-443f4.web.app';
 
 /**
  * Shares the capture card image via native share sheet or fallback.
@@ -129,7 +120,7 @@ export async function shareCard(
     capturedSquareCount: number
 ): Promise<void> {
     const referralCode = generateReferralCode(playerId);
-    const referralUrl = `${getShareUrl()}/?ref=${referralCode}`;
+    const referralUrl = `${SHARE_URL}/?ref=${referralCode}`;
     const shareText = `I just captured ${capturedSquareCount} square${capturedSquareCount === 1 ? '' : 's'} in Roamin' Empire! 🏛️ Come explore with me: ${referralUrl}`;
 
     // Convert blob to base64 data URI for Capacitor Share

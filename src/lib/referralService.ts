@@ -2,7 +2,6 @@ import { db } from './firebase';
 import {
     collection, doc, setDoc, getDocs, getDoc, updateDoc, query, where, increment
 } from 'firebase/firestore';
-import { Capacitor } from '@capacitor/core';
 
 // --- Types ---
 
@@ -52,12 +51,11 @@ export function generateReferralCode(userId: string): string {
 // Platform-aware base URL for referral links.
 // On native Capacitor, window.location.origin resolves to https://localhost which is unusable.
 const REFERRAL_WEB_URL = 'https://go-irl-443f4.web.app';
-const REFERRAL_APP_STORE_URL = 'https://apps.apple.com/app/roamin-empire/id6745786064';
-const REFERRAL_PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.goirl.app';
 
+// Referral links always use the web URL so the ?ref=CODE query param is preserved.
+// App Store / Play Store URLs silently discard all query params — the referral code
+// would be lost before the new user reaches onboarding.
 function getReferralBaseUrl(): string {
-    if (Capacitor.getPlatform() === 'ios') return REFERRAL_APP_STORE_URL;
-    if (Capacitor.getPlatform() === 'android') return REFERRAL_PLAY_STORE_URL;
     return REFERRAL_WEB_URL;
 }
 

@@ -130,6 +130,8 @@ export function Onboarding({ onComplete }: OnboardingProps) {
     const [referralCode, setReferralCode] = useState('');
     const [showReferralInput, setShowReferralInput] = useState(false);
     const [agreedLegal, setAgreedLegal] = useState(false);
+    const [showLegalError, setShowLegalError] = useState(false);
+    const [shakeKey, setShakeKey] = useState(0);
 
     // Pre-fill referral code from URL on mount
     useEffect(() => {
@@ -165,6 +167,11 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                 setStep(3);
             }
         } else if (step === 3) {
+            if (!agreedLegal) {
+                setShowLegalError(true);
+                setShakeKey(k => k + 1); // replay shake animation
+                return;
+            }
             setStep(4);
         } else if (step === 4) {
             onComplete(explorerName, color, referralCode || undefined);
@@ -176,10 +183,11 @@ export function Onboarding({ onComplete }: OnboardingProps) {
     };
 
     return (
-        <div className="h-screen w-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4">
-            <div className="max-w-md w-full bg-slate-800 rounded-2xl shadow-2xl p-6 sm:p-8 flex flex-col max-h-[90vh]">
-                {/* Progress Indicator — pinned top */}
-                <div className="flex gap-2 mb-4 flex-shrink-0">
+        <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex flex-col p-4">
+            {/* fixed inset-0 pins to the true visible viewport on iOS, avoiding 100vh browser-chrome bugs */}
+            <div className="flex-1 max-w-md w-full mx-auto bg-slate-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+                {/* Progress Indicator — always visible at top */}
+                <div className="flex gap-2 px-6 pt-5 pb-0 flex-shrink-0">
                     {[1, 2, 3, 4].map((i) => (
                         <div
                             key={i}
@@ -189,8 +197,8 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                     ))}
                 </div>
 
-                {/* Scrollable content area */}
-                <div className="flex-1 overflow-y-auto min-h-0 space-y-6 pr-1">
+                {/* Scrollable content area — scrolls freely between the pinned header/footer */}
+                <div className="flex-1 overflow-y-auto min-h-0 space-y-6 px-6 py-5">
                     {/* Step 1: Welcome */}
                     {step === 1 && (
                         <div className="space-y-4 text-center">
@@ -292,18 +300,45 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                             <ColorPicker selectedColor={color} onColorChange={setColor} />
 
                             {/* Age & Legal Gate */}
-                            <div className="bg-slate-800 p-3 rounded-lg border border-slate-700 mt-4">
+                            {showLegalError && (
+                                <style>{`
+                                    @keyframes legalShake {
+                                        0%,100% { transform: translateX(0); }
+                                        20%      { transform: translateX(-7px); }
+                                        40%      { transform: translateX(7px); }
+                                        60%      { transform: translateX(-4px); }
+                                        80%      { transform: translateX(4px); }
+                                    }
+                                    .legal-shake { animation: legalShake 0.45s ease; }
+                                `}</style>
+                            )}
+                            <div
+                                key={shakeKey}
+                                className={`p-3 rounded-lg border mt-4 transition-colors duration-300 ${
+                                    showLegalError
+                                        ? 'legal-shake bg-red-900/25 border-red-500 ring-2 ring-red-500/30'
+                                        : 'bg-slate-800 border-slate-700'
+                                }`}
+                            >
                                 <label className="flex items-start gap-3 cursor-pointer">
                                     <input 
                                         type="checkbox" 
                                         checked={agreedLegal}
-                                        onChange={(e) => setAgreedLegal(e.target.checked)}
+                                        onChange={(e) => {
+                                            setAgreedLegal(e.target.checked);
+                                            if (e.target.checked) setShowLegalError(false);
+                                        }}
                                         className="mt-1 w-5 h-5 rounded border-slate-600 text-blue-500 focus:ring-blue-500 bg-slate-700"
                                     />
                                     <span className="text-xs text-slate-300">
                                         I confirm I am <b>13 years of age or older</b>, and I have read and agree to the <LegalLink url="/legal/eula.html" label="EULA" /> and <LegalLink url="/legal/privacy.html" label="Privacy Policy" />.
                                     </span>
                                 </label>
+                                {showLegalError && (
+                                    <p className="text-red-400 text-xs mt-2 font-medium pl-8">
+                                        Please confirm your age and agree to the terms to continue.
+                                    </p>
+                                )}
                             </div>
 
                             {/* Preview */}
@@ -321,8 +356,8 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                     )}
                 </div>
 
-                {/* Navigation Buttons — pinned bottom */}
-                <div className="flex gap-3 pt-4 flex-shrink-0">
+                {/* Navigation Buttons — always visible at bottom */}
+                <div className="flex gap-3 px-6 pb-6 pt-3 flex-shrink-0 border-t border-slate-700/50">
                     {step > 1 && (
                         <button
                             onClick={handleBack}
@@ -333,7 +368,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                     )}
                     <button
                         onClick={handleNext}
-                        disabled={(step === 2 && explorerName.length < 3) || (step === 3 && !agreedLegal)}
+                        disabled={step === 2 && explorerName.length < 3}
                         className="flex-1 py-3 px-6 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {step === 4 ? 'Start Exploring! 🗺️' : 'Next'}

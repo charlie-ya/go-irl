@@ -88,17 +88,36 @@ export function GetCoinsModal({ isOpen, onClose, onOpenReferral, onOpenCoinShop 
                         </div>
                     </button>
                 ) : (
-                    <div className="bg-slate-700/30 rounded-xl p-4 border border-slate-600/50">
-                        <div className="flex items-start gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-slate-600/50 flex items-center justify-center shrink-0 mt-0.5">
-                                <ShoppingCart className="w-5 h-5 text-slate-500" />
+                    /* Web: Download prompt — the coin shop is native-only */
+                    <div className="bg-gradient-to-br from-indigo-900/60 to-purple-900/60 rounded-xl p-4 border border-indigo-500/30">
+                        <div className="flex items-start gap-3 mb-3">
+                            <div className="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                                <span className="text-xl">📱</span>
                             </div>
                             <div>
-                                <div className="text-slate-400 font-semibold">Buy Coin Packs</div>
-                                <p className="text-slate-500 text-sm mt-1">
-                                    Available in the mobile app (Android & iOS).
+                                <div className="text-white font-semibold">Get the App to Buy Coins</div>
+                                <p className="text-indigo-200/80 text-sm mt-1">
+                                    Coin purchases are available in the free iOS and Android apps. Your progress carries over automatically.
                                 </p>
                             </div>
+                        </div>
+                        <div className="flex gap-2 mt-3">
+                            <a
+                                href="https://apps.apple.com/app/roamin-empire/id6745786064"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1 flex items-center justify-center gap-1.5 bg-white text-slate-900 font-bold text-sm py-2.5 px-3 rounded-lg hover:bg-slate-100 transition-colors"
+                            >
+                                <span className="text-base">🍎</span> App Store
+                            </a>
+                            <a
+                                href="https://play.google.com/store/apps/details?id=com.goirl.app"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1 flex items-center justify-center gap-1.5 bg-white text-slate-900 font-bold text-sm py-2.5 px-3 rounded-lg hover:bg-slate-100 transition-colors"
+                            >
+                                <span className="text-base">🤖</span> Google Play
+                            </a>
                         </div>
                     </div>
                 )}

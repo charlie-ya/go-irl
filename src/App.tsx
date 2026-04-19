@@ -46,6 +46,10 @@ function App() {
   const [selectionOffset, setSelectionOffset] = useState({ latOffset: 0, lngOffset: 0 });
   const [hasSeenOffersAlert, setHasSeenOffersAlert] = useState(false);
   const [hasSeenPushPrompt, setHasSeenPushPrompt] = useState(() => localStorage.getItem('hasSeenPushPrompt') === 'true');
+  // Web-only download nudge — shown once after onboarding, dismissed forever via localStorage
+  const [showDownloadNudge, setShowDownloadNudge] = useState(() =>
+    !Capacitor.isNativePlatform() && localStorage.getItem('download_nudge_dismissed') !== 'true'
+  );
   const { isSupported, requestPermissionAndRegister } = usePushNotifications();
   const mapInstanceRef = useRef<mapboxgl.Map | null>(null);
 
@@ -156,6 +160,58 @@ function App() {
 
   return (
     <div className="relative h-screen h-[100dvh] w-screen overflow-hidden bg-slate-900">
+
+      {/* Location Error Overlay — shown when Safari/web can't get a fix */}
+      {(userLocation.persistentError || userLocation.permissionDenied) && (
+        <div className="fixed inset-0 z-[9999] bg-slate-900/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+          <div className="max-w-sm w-full space-y-5">
+            <div className="w-16 h-16 mx-auto rounded-full bg-amber-500/20 flex items-center justify-center">
+              <span className="text-3xl">📍</span>
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-white mb-2">
+                {userLocation.permissionDenied ? 'Location Access Denied' : 'Can\'t Find Your Location'}
+              </h2>
+              <p className="text-slate-300 text-sm leading-relaxed">
+                {userLocation.permissionDenied
+                  ? 'Roamin\' Empire needs your location to play. Safari blocked access — you can fix this in Settings, or try the app for a smoother experience.'
+                  : 'Safari couldn\'t get a GPS fix after several attempts. This is a known Safari limitation — the native app uses iOS location directly and works much more reliably.'
+                }
+              </p>
+            </div>
+
+            {/* Download CTA */}
+            <div className="bg-slate-800 rounded-2xl p-4 border border-slate-700 space-y-3">
+              <p className="text-white font-semibold text-sm">Get the free app for the best experience</p>
+              <div className="flex gap-2">
+                <a
+                  href="https://apps.apple.com/app/roamin-empire/id6745786064"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 flex items-center justify-center gap-1.5 bg-white text-slate-900 font-bold text-sm py-2.5 rounded-xl hover:bg-slate-100 transition-colors"
+                >
+                  🍎 App Store
+                </a>
+                <a
+                  href="https://play.google.com/store/apps/details?id=com.goirl.app"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 flex items-center justify-center gap-1.5 bg-white text-slate-900 font-bold text-sm py-2.5 rounded-xl hover:bg-slate-100 transition-colors"
+                >
+                  🤖 Google Play
+                </a>
+              </div>
+            </div>
+
+            {/* Safari fix hint for permission denied */}
+            {userLocation.permissionDenied && (
+              <p className="text-slate-500 text-xs leading-relaxed">
+                To fix in Safari: Settings → Privacy &amp; Security → Location Services → Safari → While Using
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Top Controls: Offers & Profile/Stats Panel */}
       <div className="absolute top-3 right-3 z-[2000] flex items-start gap-2 pointer-events-none">
@@ -278,6 +334,38 @@ function App() {
         tilesCount={tilesCount}
         territoriesCount={territoriesCount}
       />
+
+      {/* Web download nudge — sticky banner above controls, dismissed forever on tap */}
+      {showDownloadNudge && (
+        <div className="absolute bottom-[7rem] left-0 right-0 px-3 z-[999] pointer-events-auto">
+          <div className="bg-gradient-to-r from-indigo-900/95 to-purple-900/95 border border-indigo-500/40 rounded-2xl px-4 py-3 flex items-center gap-3 shadow-2xl backdrop-blur-sm">
+            <span className="text-2xl flex-shrink-0">📱</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-white text-xs font-semibold">Get the full experience</p>
+              <div className="flex gap-2 mt-1.5">
+                <a href="https://apps.apple.com/app/roamin-empire/id6745786064" target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1 bg-white text-slate-900 font-bold text-[11px] py-1 px-2.5 rounded-lg hover:bg-slate-100 transition-colors">
+                  🍎 App Store
+                </a>
+                <a href="https://play.google.com/store/apps/details?id=com.goirl.app" target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1 bg-white text-slate-900 font-bold text-[11px] py-1 px-2.5 rounded-lg hover:bg-slate-100 transition-colors">
+                  🤖 Google Play
+                </a>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setShowDownloadNudge(false);
+                localStorage.setItem('download_nudge_dismissed', 'true');
+              }}
+              className="text-slate-400 hover:text-white p-1 flex-shrink-0 transition-colors"
+              aria-label="Dismiss"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       <Controls
         lat={userLocation.lat || 0}
