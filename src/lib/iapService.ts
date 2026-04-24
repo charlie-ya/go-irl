@@ -9,6 +9,12 @@
 import { Capacitor } from '@capacitor/core';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 
+// Import local assets for CoinShop
+import imgStarter from '../assets/images/coins_starter_roamin_empire.png';
+import imgExplorer from '../assets/images/coins_explorer_roamin_empire.png';
+import imgAdventurer from '../assets/images/coins_adventurer_roamin_empire.png';
+import imgExpedition from '../assets/images/coins_expedition_roamin_empire.png';
+
 // Tell TypeScript the CdvPurchase global will be injected dynamically by Capacitor
 declare var CdvPurchase: any;
 
@@ -23,6 +29,7 @@ export interface CoinPack {
     coins: number;
     bonusLabel?: string;
     badge?: string;
+    image: string;
 }
 
 // --- Product Definitions ---
@@ -32,6 +39,7 @@ export const COIN_PACKS: CoinPack[] = [
         productId: 'coins_starter',
         label: 'Starter Pack',
         coins: 100,
+        image: imgStarter,
     },
     {
         productId: 'coins_explorer',
@@ -39,12 +47,14 @@ export const COIN_PACKS: CoinPack[] = [
         coins: 500,
         bonusLabel: '+50 bonus',
         badge: 'Most Popular',
+        image: imgExplorer,
     },
     {
         productId: 'coins_adventurer',
         label: 'Adventurer Pack',
         coins: 1200,
         bonusLabel: '+200 bonus',
+        image: imgAdventurer,
     },
     {
         productId: 'coins_expedition',
@@ -52,6 +62,7 @@ export const COIN_PACKS: CoinPack[] = [
         coins: 3000,
         bonusLabel: '+600 bonus',
         badge: 'Best Value',
+        image: imgExpedition,
     },
 ];
 

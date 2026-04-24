@@ -89,18 +89,20 @@ export function CoinShop({ isOpen, onClose }: CoinShopProps) {
                             )}
 
                             {/* Left: Info */}
-                            <div className="flex items-center gap-3">
-                                <div className="text-3xl">🪙</div>
+                            <div className="flex items-center gap-4">
+                                <div className="w-14 h-14 rounded-lg bg-slate-900 border border-slate-700 overflow-hidden flex-shrink-0 shadow-inner">
+                                    <img src={pack.image} alt={pack.label} className="w-full h-full object-cover" />
+                                </div>
                                 <div className="text-left">
                                     <div className="text-white font-bold text-lg">
                                         {pack.coins.toLocaleString()}
                                         {pack.bonusLabel && (
-                                            <span className="text-yellow-400 text-sm ml-1">
+                                            <span className="text-yellow-400 text-sm ml-1.5 font-semibold">
                                                 {pack.bonusLabel}
                                             </span>
                                         )}
                                     </div>
-                                    <div className="text-slate-400 text-sm">{pack.label}</div>
+                                    <div className="text-slate-300 text-sm">{pack.label}</div>
                                 </div>
                             </div>
 

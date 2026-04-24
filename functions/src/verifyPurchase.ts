@@ -12,16 +12,18 @@
  *   4. Logs the transaction for audit purposes
  *   5. Returns { success, coinsAwarded } to the client
  *
- * Environment variables required (set via `firebase functions:config:set` or
- * Secret Manager):
+ * Environment variables required (set via Secret Manager):
  *   APPLE_SHARED_SECRET  — from App Store Connect > App > In-App Purchases > Shared Secret
- *   GOOGLE_SERVICE_ACCOUNT_KEY_JSON — Base64-encoded service account JSON with
- *                                     Android Publisher API access
+ *   GOOGLE_SERVICE_ACCOUNT_KEY_JSON — Base64-encoded service account JSON
  */
 
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import * as https from "https";
+import { defineSecret } from "firebase-functions/params";
+
+const appleSecret = defineSecret("APPLE_SHARED_SECRET");
+const googleKey = defineSecret("GOOGLE_SERVICE_ACCOUNT_KEY_JSON");
 
 const db = admin.firestore();
 
@@ -40,7 +42,7 @@ async function verifyAppleReceipt(receipt: string): Promise<{
     productId?: string;
     transactionId?: string;
 }> {
-    const appleSharedSecret = functions.config().apple?.shared_secret;
+    const appleSharedSecret = appleSecret.value();
     if (!appleSharedSecret) {
         console.error("[verifyPurchase] APPLE_SHARED_SECRET not configured.");
         throw new functions.https.HttpsError("internal", "Apple IAP not configured.");
@@ -110,14 +112,13 @@ async function verifyGoogleReceipt(receipt: string, productId: string): Promise<
     transactionId?: string;
 }> {
     // The Google Play Developer API requires OAuth2 service account credentials.
-    // Until the service account JSON is configured, we cannot validate.
-    const keyJson = functions.config().google?.service_account_key_json;
+    const keyJson = googleKey.value();
     if (!keyJson) {
         console.error("[verifyPurchase] GOOGLE_SERVICE_ACCOUNT_KEY_JSON not configured.");
         throw new functions.https.HttpsError("internal", "Google IAP not configured.");
     }
 
-    // Dynamically import googleapis (add to dependencies: npm i googleapis)
+    // Dynamically import googleapis
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { google } = require("googleapis");
 
@@ -156,7 +157,9 @@ async function verifyGoogleReceipt(receipt: string, productId: string): Promise<
 
 // --- Main Cloud Function ---
 
-export const verifyPurchase = functions.https.onCall(async (request: any) => {
+export const verifyPurchase = functions.runWith({
+    secrets: [appleSecret, googleKey]
+}).https.onCall(async (request: any) => {
     // 1. Authenticate
     if (!request.auth) {
         throw new functions.https.HttpsError(
