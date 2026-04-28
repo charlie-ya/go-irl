@@ -5,6 +5,9 @@ workflows:
     integrations:
       app_store_connect: "internal dev"
     environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.goirl.app
       vars:
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
@@ -25,18 +28,6 @@ workflows:
         script: |
           npx cap sync ios
 
-      - name: Fetch and Create Signing Profiles
-        script: |
-          # Force Codemagic to generate the App Store profile if it's missing
-          app-store-connect fetch-signing-files "com.goirl.app" \
-            --type IOS_APP_STORE \
-            --create
-          
-          # Install the downloaded certificate into the Mac's keychain
-          keychain add-certificates
-          
-          # Tell Xcode to use the freshly generated profile
-          xcode-project use-profiles
 
       - name: Build iOS IPA
         script: |
