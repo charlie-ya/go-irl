@@ -2,6 +2,8 @@ workflows:
   ios-app-store:
     name: iOS App Store Build
     instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: "Codemagic Build Key"
     environment:
       # Automatically fetch Apple signing certificates using Codemagic's integration
       ios_signing:
