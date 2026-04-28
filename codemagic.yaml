@@ -5,9 +5,6 @@ workflows:
     integrations:
       app_store_connect: "internal dev"
     environment:
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.goirl.app
       vars:
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
@@ -28,13 +25,24 @@ workflows:
         script: |
           npx cap sync ios
 
-
-      - name: Build iOS IPA
+      - name: Fetch Profiles and Build iOS
         script: |
-          # Use Codemagic's built-in CLI tool to compile the archive
+          # 1. Force Codemagic to generate the App Store profile
+          app-store-connect fetch-signing-files "com.goirl.app" \
+            --type IOS_APP_STORE \
+            --create
+          
+          # 2. Install the certificate
+          keychain add-certificates
+          
+          # 3. Modify Xcode project to use the profiles
+          xcode-project use-profiles
+          
+          # 4. Build the IPA in the EXACT SAME shell so it inherits the code signing variables
           xcode-project build-ipa \
             --workspace "$XCODE_WORKSPACE" \
-            --scheme "$XCODE_SCHEME"
+            --scheme "$XCODE_SCHEME" \
+            --disable-automatic-provisioning
 
     artifacts:
       - build/ios/ipa/*.ipa
