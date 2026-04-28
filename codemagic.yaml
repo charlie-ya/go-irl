@@ -29,6 +29,8 @@ workflows:
 
       - name: Fetch Profiles and Build iOS
         script: |
+          keychain initialize
+          
           app-store-connect fetch-signing-files "com.goirl.app" \
             --type IOS_APP_STORE \
             --create
