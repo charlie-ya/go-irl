@@ -32,6 +32,9 @@ workflows:
             --type IOS_APP_STORE \
             --create
           
+          # Install the downloaded certificate into the Mac's keychain
+          keychain add-certificates
+          
           # Tell Xcode to use the freshly generated profile
           xcode-project use-profiles
 
