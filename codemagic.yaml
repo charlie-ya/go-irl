@@ -5,10 +5,6 @@ workflows:
     integrations:
       app_store_connect: "Codemagic Build Key"
     environment:
-      # Automatically fetch Apple signing certificates using Codemagic's integration
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.goirl.app
       vars:
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
@@ -35,6 +31,9 @@ workflows:
           app-store-connect fetch-signing-files "com.goirl.app" \
             --type IOS_APP_STORE \
             --create
+          
+          # Tell Xcode to use the freshly generated profile
+          xcode-project use-profiles
 
       - name: Build iOS IPA
         script: |
