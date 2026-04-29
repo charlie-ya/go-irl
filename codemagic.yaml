@@ -41,6 +41,10 @@ workflows:
             --type IOS_APP_STORE \
             --create
           
+          # Auto-increment the build number so Apple doesn't reject it as a duplicate
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" ios/App/App/Info.plist
+          
+          # 3. Modify Xcode project to use the profiles
           keychain add-certificates
           
           xcode-project use-profiles
