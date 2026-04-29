@@ -23,6 +23,12 @@ workflows:
         script: |
           npm run build
 
+      - name: Patch Google Auth SDK for Privacy Manifest
+        script: |
+          # Apple requires GoogleSignIn 7.1.0+ for the privacy manifest.
+          # The plugin hardcodes 6.2.4, so we patch it before syncing.
+          sed -i '' "s/~> 6.2.4/~> 7.1.0/g" node_modules/@codetrix-studio/capacitor-google-auth/CodetrixStudioCapacitorGoogleAuth.podspec
+          
       - name: Sync Capacitor
         script: |
           npx cap sync ios

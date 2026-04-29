@@ -14,14 +14,6 @@
       },
       "oauth_client": [
         {
-          "client_id": "675006608980-ik1bmghueqnl4j8bg7dj3bfkrj4nc0bg.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.goirl.app",
-            "certificate_hash": "c0cdfe01d7dfbadf6b329798f5721c5fbbf23157"
-          }
-        },
-        {
           "client_id": "675006608980-rta6062tiqs1cvesk8kc7j6eg3h8o9eh.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
@@ -45,13 +37,6 @@
             {
               "client_id": "675006608980-ia7sek9fmsnrv2um9q2jfs7hg8umh2c9.apps.googleusercontent.com",
               "client_type": 3
-            },
-            {
-              "client_id": "675006608980-jopelj2e70iuh18o76crgmjcjfldoema.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.goirl.app"
-              }
             }
           ]
         }

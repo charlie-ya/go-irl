@@ -337,7 +337,7 @@ function App() {
 
       {/* Web download nudge — sticky banner above controls, dismissed forever on tap */}
       {showDownloadNudge && (
-        <div className="absolute bottom-[7rem] left-0 right-0 px-3 z-[999] pointer-events-auto">
+        <div className="absolute bottom-[10rem] left-0 right-0 px-3 z-[2100] pointer-events-auto">
           <div className="bg-gradient-to-r from-indigo-900/95 to-purple-900/95 border border-indigo-500/40 rounded-2xl px-4 py-3 flex items-center gap-3 shadow-2xl backdrop-blur-sm">
             <span className="text-2xl flex-shrink-0">📱</span>
             <div className="flex-1 min-w-0">
