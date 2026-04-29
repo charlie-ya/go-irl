@@ -7,7 +7,6 @@ workflows:
     environment:
       groups:
         - apple_credentials
-        - firebase_config
       vars:
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
@@ -20,6 +19,12 @@ workflows:
         script: |
           npm install
 
+      - name: Create Env File
+        script: |
+          ENV_BASE64="VklURV9NQVBCT1hfVE9LRU49cGsuZXlKMUlqb2lZMmhoY214cFpTMTVZWGRwZEhvaUxDSmhJam9pWTIxc2FXSm9OblJzTURFMGNqTnJjakp0WkdGemNYQnRiQ0o5Ljc0ZV9DNEthTGE3dHd6UnJFUjA4TGcKVklURV9GSVJFQkFTRV9BUElfS0VZPSJBSXphU3lBZFRoR2JSNG9IdUk2NG5tcjNyb1FKR2NGc1RHY2Qtd0kiClZJVEVfRklSRUJBU0VfQVVUSF9ET01BSU49Z28taXJsLTQ0M2Y0LmZpcmViYXNlYXBwLmNvbQpWSVRFX0ZJUkVCQVNFX1BST0pFQ1RfSUQ9Z28taXJsLTQ0M2Y0ClZJVEVfRklSRUJBU0VfU1RPUkFHRV9CVUNLRVQ9Z28taXJsLTQ0M2Y0LmZpcmViYXNlc3RvcmFnZS5hcHAKVklURV9GSVJFQkFTRV9NRVNTQUdJTkdfU0VOREVSX0lEPTY3NTAwNjYwODk4MApWSVRFX0ZJUkVCQVNFX0FQUF9JRD0iMTo2NzUwMDY2MDg5ODA6d2ViOmZhODU1Yzc4OWRlMWQzMTBjZDlmYzEiClZJVEVfRklSRUJBU0VfTUVBU1VSRU1FTlRfSUQ9Ry04NVYzVzNRWUxZCg=="
+          echo "$ENV_BASE64" | base64 --decode > .env
+          
+          
       - name: Build Web App
         script: |
           npm run build
