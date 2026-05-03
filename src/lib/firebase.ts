@@ -1,7 +1,8 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, signInWithCredential, signInWithEmailAndPassword } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, OAuthProvider, signInWithPopup, signOut, signInWithCredential, signInWithEmailAndPassword } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
+import { SignInWithApple } from '@capacitor-community/apple-sign-in';
 import { Capacitor } from '@capacitor/core';
 
 // Firebase configuration loaded from environment variables
@@ -20,6 +21,7 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const googleProvider = new GoogleAuthProvider();
+export const appleProvider = new OAuthProvider('apple.com');
 
 export const signInWithGoogleNative = async () => {
     try {
@@ -52,6 +54,41 @@ export const signInWithGoogle = async () => {
     } catch (error: any) {
         console.error("Error signing in with Google", error);
         alert(`Failed to sign in:\n${error.message}\n\nCheck console for more details.`);
+    }
+};
+
+export const signInWithAppleNative = async () => {
+    try {
+        const result = await SignInWithApple.authorize({
+            clientId: 'com.goirl.app',
+            redirectURI: '',
+            scopes: 'email name',
+        });
+        
+        const idToken = result.response.identityToken;
+        if (!idToken) {
+            throw new Error('No identity token returned from Apple.');
+        }
+
+        const credential = appleProvider.credential({
+            idToken: idToken,
+        });
+
+        await signInWithCredential(auth, credential);
+    } catch (error: any) {
+        console.error("Error signing in with Apple Native", error);
+        if (error?.message?.includes('canceled')) return;
+        alert(`Failed to sign in with Apple:\n${error.message}\n\nCheck console for more details.`);
+    }
+};
+
+export const signInWithApple = async () => {
+    try {
+        await signInWithPopup(auth, appleProvider);
+    } catch (error: any) {
+        console.error("Error signing in with Apple", error);
+        if (error?.code === 'auth/popup-closed-by-user') return;
+        alert(`Failed to sign in with Apple:\n${error.message}\n\nCheck console for more details.`);
     }
 };
 

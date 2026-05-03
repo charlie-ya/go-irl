@@ -53,7 +53,7 @@ export function SafetyWarning({ onAcknowledge }: SafetyWarningProps) {
                         disabled={!ageConfirmed}
                         className="mt-4 w-full bg-blue-500 hover:bg-blue-600 disabled:bg-slate-700 disabled:text-slate-500 text-white font-bold py-3 rounded-lg transition-colors"
                     >
-                        Accept & Continue
+                        Continue
                     </button>
                     
                     <p className="text-[10px] text-slate-500 mt-2">

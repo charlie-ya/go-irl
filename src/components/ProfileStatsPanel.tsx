@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { LogOut, Settings, Trophy, ChevronDown, Crown } from 'lucide-react';
+import { LogOut, Settings, Trophy, ChevronDown, Crown, BookOpen } from 'lucide-react';
 
 interface ProfileStatsPanelProps {
     explorerName?: string;
@@ -13,6 +13,7 @@ interface ProfileStatsPanelProps {
     onEditProfile: () => void;
     onLeaderboard: () => void;
     onAscend: () => void;
+    onShowRules: () => void;
     onLogout: () => void;
 }
 
@@ -28,6 +29,7 @@ export function ProfileStatsPanel({
     onEditProfile, 
     onLeaderboard, 
     onAscend,
+    onShowRules,
     onLogout 
 }: ProfileStatsPanelProps) {
     const [isOpen, setIsOpen] = useState(false);
@@ -114,6 +116,11 @@ export function ProfileStatsPanel({
                     <button onClick={() => { setIsOpen(false); onLeaderboard(); }} className="flex items-center gap-2 px-3 py-2 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors text-left w-full group">
                         <Trophy className="w-4 h-4 group-hover:scale-110 transition-transform text-yellow-500/80 group-hover:text-yellow-400" />
                         <span className="text-sm font-medium">Leaderboard</span>
+                    </button>
+                    
+                    <button onClick={() => { setIsOpen(false); onShowRules(); }} className="flex items-center gap-2 px-3 py-2 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors text-left w-full group">
+                        <BookOpen className="w-4 h-4 group-hover:scale-110 transition-transform text-blue-400/80 group-hover:text-blue-300" />
+                        <span className="text-sm font-medium">The Rules</span>
                     </button>
                     
                     <div className="h-px bg-slate-700/50 my-1 mx-2"></div>

@@ -1,5 +1,6 @@
 import { X, Map, Users, ShoppingCart } from 'lucide-react';
 import { isIAPAvailable } from '../lib/iapService';
+import { Capacitor } from '@capacitor/core';
 
 interface GetCoinsModalProps {
     isOpen: boolean;
@@ -110,14 +111,16 @@ export function GetCoinsModal({ isOpen, onClose, onOpenReferral, onOpenCoinShop 
                             >
                                 <span className="text-base">🍎</span> App Store
                             </a>
-                            <a
-                                href="https://play.google.com/store/apps/details?id=com.goirl.app"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex-1 flex items-center justify-center gap-1.5 bg-white text-slate-900 font-bold text-sm py-2.5 px-3 rounded-lg hover:bg-slate-100 transition-colors"
-                            >
-                                <span className="text-base">🤖</span> Google Play
-                            </a>
+                            {Capacitor.getPlatform() !== 'ios' && (
+                                <a
+                                    href="https://play.google.com/store/apps/details?id=com.goirl.app"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex-1 flex items-center justify-center gap-1.5 bg-white text-slate-900 font-bold text-sm py-2.5 px-3 rounded-lg hover:bg-slate-100 transition-colors"
+                                >
+                                    <span className="text-base">🤖</span> Google Play
+                                </a>
+                            )}
                         </div>
                     </div>
                 )}

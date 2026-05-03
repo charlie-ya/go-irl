@@ -1,4 +1,4 @@
-import { signInWithGoogle, signInWithGoogleNative, signInWithEmail } from '../lib/firebase';
+import { signInWithGoogle, signInWithGoogleNative, signInWithEmail, signInWithApple, signInWithAppleNative } from '../lib/firebase';
 import { Gamepad2, Mail, ChevronDown, ChevronUp } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { useState } from 'react';
@@ -15,6 +15,14 @@ export function Login() {
             await signInWithGoogleNative();
         } else {
             await signInWithGoogle();
+        }
+    };
+
+    const handleAppleLogin = async () => {
+        if (Capacitor.isNativePlatform()) {
+            await signInWithAppleNative();
+        } else {
+            await signInWithApple();
         }
     };
 
@@ -52,13 +60,23 @@ export function Login() {
                 </p>
             </div>
 
-            <button
-                onClick={handleGoogleLogin}
-                className="bg-white text-slate-900 font-bold py-3 px-8 rounded-full shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center gap-3"
-            >
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-6 h-6" alt="Google" />
-                Sign in with Google
-            </button>
+            <div className="flex flex-col gap-3 w-full max-w-[280px]">
+                <button
+                    onClick={handleAppleLogin}
+                    className="bg-black text-white font-bold py-3 px-8 rounded-full shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3 border border-slate-800"
+                >
+                    <span className="text-xl -mt-1"></span>
+                    Sign in with Apple
+                </button>
+
+                <button
+                    onClick={handleGoogleLogin}
+                    className="bg-white text-slate-900 font-bold py-3 px-8 rounded-full shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3"
+                >
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" />
+                    Sign in with Google
+                </button>
+            </div>
 
             <button
                 onClick={() => setShowEmailLogin(!showEmailLogin)}

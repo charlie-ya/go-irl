@@ -14,6 +14,7 @@ import { NotificationOptInPrompt } from './components/NotificationOptInPrompt';
 import { ReferralPanel } from './components/ReferralPanel';
 import { LeaderboardPanel } from './components/LeaderboardPanel';
 import { ProfileStatsPanel } from './components/ProfileStatsPanel';
+import { RulesModal } from './components/RulesModal';
 import { useGeolocation, isAndroidDevModeEnabled } from './lib/useGeolocation';
 import { useGameState } from './lib/gameState';
 import { getGridKey, parseGridKey, getGridFloats } from './lib/gridSystem';
@@ -43,6 +44,7 @@ function App() {
   const [showCoinShop, setShowCoinShop] = useState(false);
   const [showReferralPanel, setShowReferralPanel] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showRules, setShowRules] = useState(false);
   const [selectionOffset, setSelectionOffset] = useState({ latOffset: 0, lngOffset: 0 });
   const [hasSeenOffersAlert, setHasSeenOffersAlert] = useState(false);
   const [hasSeenPushPrompt, setHasSeenPushPrompt] = useState(() => localStorage.getItem('hasSeenPushPrompt') === 'true');
@@ -192,14 +194,16 @@ function App() {
                 >
                   🍎 App Store
                 </a>
-                <a
-                  href="https://play.google.com/store/apps/details?id=com.goirl.app"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 flex items-center justify-center gap-1.5 bg-white text-slate-900 font-bold text-sm py-2.5 rounded-xl hover:bg-slate-100 transition-colors"
-                >
-                  🤖 Google Play
-                </a>
+                {Capacitor.getPlatform() !== 'ios' && (
+                  <a
+                    href="https://play.google.com/store/apps/details?id=com.goirl.app"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 flex items-center justify-center gap-1.5 bg-white text-slate-900 font-bold text-sm py-2.5 rounded-xl hover:bg-slate-100 transition-colors"
+                  >
+                    🤖 Google Play
+                  </a>
+                )}
               </div>
             </div>
 
@@ -242,6 +246,7 @@ function App() {
           onEditProfile={() => setShowProfileEditor(true)}
           onLeaderboard={() => setShowLeaderboard(true)}
           onAscend={() => setShowAscendDialog(true)}
+          onShowRules={() => setShowRules(true)}
           onLogout={() => logout()}
         />
       </div>
@@ -347,10 +352,12 @@ function App() {
                   className="flex items-center gap-1 bg-white text-slate-900 font-bold text-[11px] py-1 px-2.5 rounded-lg hover:bg-slate-100 transition-colors">
                   🍎 App Store
                 </a>
-                <a href="https://play.google.com/store/apps/details?id=com.goirl.app" target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1 bg-white text-slate-900 font-bold text-[11px] py-1 px-2.5 rounded-lg hover:bg-slate-100 transition-colors">
-                  🤖 Google Play
-                </a>
+                {Capacitor.getPlatform() !== 'ios' && (
+                  <a href="https://play.google.com/store/apps/details?id=com.goirl.app" target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1 bg-white text-slate-900 font-bold text-[11px] py-1 px-2.5 rounded-lg hover:bg-slate-100 transition-colors">
+                    🤖 Google Play
+                  </a>
+                )}
               </div>
             </div>
             <button

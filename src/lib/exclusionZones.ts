@@ -69,7 +69,7 @@ export function isPointInExcludedZone(lat: number, lng: number, zones: Exclusion
 export function getZoneColor(category: ZoneCategory): string {
     switch (category) {
         case 'sacred': return '#FFD700'; // Gold
-        case 'reserved': return '#800080'; // Purple
+        case 'reserved': return '#FFFF00'; // Yellow
         case 'sovereign': return '#FF4500'; // OrangeRed
         case 'natural': return '#228B22'; // ForestGreen
         case 'commercial': return '#808080'; // Grey
