@@ -569,6 +569,11 @@ function App() {
           </div>
         )}
 
+      {/* Rules Modal */}
+      {showRules && (
+        <RulesModal onClose={() => setShowRules(false)} />
+      )}
+
     </div>
   );
 }
