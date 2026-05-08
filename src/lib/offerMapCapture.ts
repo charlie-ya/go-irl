@@ -33,8 +33,31 @@ export async function captureOfferScreenshot(
         }
     });
 
-    // Capture the canvas as a compressed JPEG
-    const dataUrl = map.getCanvas().toDataURL('image/jpeg', 0.6);
+    // Capture the canvas
+    const originalCanvas = map.getCanvas();
+    
+    // Downscale the image to prevent Firestore 1MB limit errors on high-res iPads/Retina displays
+    const MAX_DIMENSION = 600;
+    let width = originalCanvas.width;
+    let height = originalCanvas.height;
+    
+    if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+        const ratio = Math.min(MAX_DIMENSION / width, MAX_DIMENSION / height);
+        width = Math.floor(width * ratio);
+        height = Math.floor(height * ratio);
+    }
+
+    const scaledCanvas = document.createElement('canvas');
+    scaledCanvas.width = width;
+    scaledCanvas.height = height;
+    
+    const ctx = scaledCanvas.getContext('2d');
+    if (ctx) {
+        ctx.drawImage(originalCanvas, 0, 0, width, height);
+    }
+
+    // Generate compressed JPEG from the scaled canvas
+    const dataUrl = scaledCanvas.toDataURL('image/jpeg', 0.6);
 
     // Restore the buyer's original view
     map.jumpTo({
