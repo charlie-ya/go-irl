@@ -162,8 +162,7 @@ function App() {
 
   return (
     <div className="relative h-screen h-[100dvh] w-screen overflow-hidden bg-slate-900">
-
-      {/* Location Error Overlay — shown when Safari/web can't get a fix */}
+      {/* Location Error Overlay — shown when device/browser can't get a fix */}
       {(userLocation.persistentError || userLocation.permissionDenied) && (
         <div className="fixed inset-0 z-[9999] bg-slate-900/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
           <div className="max-w-sm w-full space-y-5">
@@ -176,42 +175,37 @@ function App() {
               </h2>
               <p className="text-slate-300 text-sm leading-relaxed">
                 {userLocation.permissionDenied
-                  ? 'Roamin\' Empire needs your location to play. Safari blocked access — you can fix this in Settings, or try the app for a smoother experience.'
-                  : 'Safari couldn\'t get a GPS fix after several attempts. This is a known Safari limitation — the native app uses iOS location directly and works much more reliably.'
+                  ? 'Roamin\' Empire needs your location to play. Your device blocked access — please fix this in Settings to continue.'
+                  : 'Your device couldn\'t get a GPS fix after several attempts. Please ensure your location services are turned on and you have a clear view of the sky.'
                 }
               </p>
             </div>
 
-            {/* Download CTA */}
-            <div className="bg-slate-800 rounded-2xl p-4 border border-slate-700 space-y-3">
-              <p className="text-white font-semibold text-sm">Get the free app for the best experience</p>
-              <div className="flex gap-2">
-                <a
-                  href="https://apps.apple.com/app/roamin-empire/id6745786064"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 flex items-center justify-center gap-1.5 bg-white text-slate-900 font-bold text-sm py-2.5 rounded-xl hover:bg-slate-100 transition-colors"
-                >
-                  🍎 App Store
-                </a>
-                {Capacitor.getPlatform() !== 'ios' && (
+            {/* Download CTA - Only show on web */}
+            {!Capacitor.isNativePlatform() && (
+              <div className="bg-slate-800 rounded-2xl p-4 border border-slate-700 space-y-3">
+                <p className="text-white font-semibold text-sm">Get the free app for the best experience</p>
+                <div className="flex gap-2">
                   <a
-                    href="https://play.google.com/store/apps/details?id=com.goirl.app"
+                    href="https://apps.apple.com/app/roamin-empire/id6745786064"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex-1 flex items-center justify-center gap-1.5 bg-white text-slate-900 font-bold text-sm py-2.5 rounded-xl hover:bg-slate-100 transition-colors"
                   >
-                    🤖 Google Play
+                    🍎 App Store
                   </a>
-                )}
+                  {Capacitor.getPlatform() !== 'ios' && (
+                    <a
+                      href="https://play.google.com/store/apps/details?id=com.goirl.app"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 flex items-center justify-center gap-1.5 bg-slate-900 text-white font-bold text-sm py-2.5 rounded-xl hover:bg-slate-700 transition-colors border border-slate-600"
+                    >
+                      🤖 Play Store
+                    </a>
+                  )}
+                </div>
               </div>
-            </div>
-
-            {/* Safari fix hint for permission denied */}
-            {userLocation.permissionDenied && (
-              <p className="text-slate-500 text-xs leading-relaxed">
-                To fix in Safari: Settings → Privacy &amp; Security → Location Services → Safari → While Using
-              </p>
             )}
           </div>
         </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Geolocation } from '@capacitor/geolocation';
 import {
     addPositionToHistory,
     calculateAverageSpeed,
@@ -73,7 +74,7 @@ export function useGeolocation(enabled: boolean = true) {
     const lastProcessedPos = useRef<{ lat: number; lng: number } | null>(null);
     const retryCount = useRef(0);
     const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const watchId = useRef<number | null>(null);
+    const watchId = useRef<string | null>(null); // Capacitor returns a string watch ID
 
     // Calculate distance between two points in meters
     const getDistanceMeters = (lat1: number, lng1: number, lat2: number, lng2: number) => {
@@ -94,127 +95,147 @@ export function useGeolocation(enabled: boolean = true) {
     useEffect(() => {
         if (!enabled) return;
 
-        if (!navigator.geolocation) {
-            setState(s => ({ ...s, error: 'Geolocation not supported', loading: false }));
-            return;
-        }
+        let isActive = true;
 
-        const startWatch = () => {
-            watchId.current = navigator.geolocation.watchPosition(
-                (position) => {
-                    // Successful fix — reset retry counter
-                    retryCount.current = 0;
+        const startWatch = async () => {
+            try {
+                // Request permissions first on native
+                await Geolocation.requestPermissions();
+                
+                const id = await Geolocation.watchPosition(
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: GPS_MAX_CACHE_AGE_MS,
+                    },
+                    (position, error) => {
+                        if (!isActive) return;
 
-                    // SECURITY: Check for Mock Location (Android Native)
-                    if (window.AndroidPolicy && window.AndroidPolicy.isMockLocation()) {
-                        setState(s => ({
-                            ...s,
-                            error: 'SECURITY VIOLATION: Mock Location Detected. Please disable fake GPS apps to play.',
-                            loading: false,
-                            lat: null,
-                            lng: null
-                        }));
-                        return;
-                    }
+                        if (error) {
+                            console.error("Geolocation watch error:", error);
+                            // Error code 1 is PERMISSION_DENIED
+                            // @ts-ignore
+                            if (error.code === 1 || error.message?.includes('denied') || error.message?.includes('permission')) {
+                                setState(s => ({
+                                    ...s,
+                                    error: error.message || 'Permission denied',
+                                    loading: false,
+                                    retrying: false,
+                                    permissionDenied: true,
+                                }));
+                                return;
+                            }
 
-                    const newLat = position.coords.latitude;
-                    const newLng = position.coords.longitude;
+                            if (watchId.current !== null) {
+                                Geolocation.clearWatch({ id: watchId.current });
+                                watchId.current = null;
+                            }
 
-                    // BATTERY SAVER: Ignore updates if we haven't moved at least 5 meters
-                    // This prevents GPS jitter from triggering re-renders and logic
-                    if (lastProcessedPos.current) {
-                        const dist = getDistanceMeters(
-                            lastProcessedPos.current.lat,
-                            lastProcessedPos.current.lng,
-                            newLat,
-                            newLng
+                            if (retryCount.current < MAX_RETRIES) {
+                                retryCount.current += 1;
+                                setState(s => ({ ...s, retrying: true, error: null }));
+                                retryTimer.current = setTimeout(startWatch, RETRY_DELAY_MS);
+                            } else {
+                                setState(s => ({
+                                    ...s,
+                                    retrying: false,
+                                    persistentError: true,
+                                    loading: false,
+                                    error: error.message || 'Unknown error',
+                                }));
+                            }
+                            return;
+                        }
+
+                        if (!position) return;
+
+                        retryCount.current = 0;
+
+                        if (window.AndroidPolicy && window.AndroidPolicy.isMockLocation()) {
+                            setState(s => ({
+                                ...s,
+                                error: 'SECURITY VIOLATION: Mock Location Detected. Please disable fake GPS apps to play.',
+                                loading: false,
+                                lat: null,
+                                lng: null
+                            }));
+                            return;
+                        }
+
+                        const newLat = position.coords.latitude;
+                        const newLng = position.coords.longitude;
+
+                        if (lastProcessedPos.current) {
+                            const dist = getDistanceMeters(
+                                lastProcessedPos.current.lat,
+                                lastProcessedPos.current.lng,
+                                newLat,
+                                newLng
+                            );
+                            if (dist < GPS_MIN_DISTANCE_METERS) return; 
+                        }
+
+                        lastProcessedPos.current = { lat: newLat, lng: newLng };
+
+                        const newPosition: PositionRecord = {
+                            lat: newLat,
+                            lng: newLng,
+                            timestamp: Date.now(),
+                        };
+
+                        positionHistory.current = addPositionToHistory(
+                            positionHistory.current,
+                            newPosition
                         );
-                        if (dist < GPS_MIN_DISTANCE_METERS) return; // Skip update
-                    }
 
-                    lastProcessedPos.current = { lat: newLat, lng: newLng };
+                        const avgSpeed = calculateAverageSpeed(positionHistory.current);
 
-                    const newPosition: PositionRecord = {
-                        lat: newLat,
-                        lng: newLng,
-                        timestamp: Date.now(),
-                    };
+                        const isWarmingUp = Date.now() - initializationTime.current < 30000;
+                        const movingTooFast = !isWarmingUp && isConsistentlyMovingTooFast(positionHistory.current);
 
-                    // Add to history (automatically filters old positions)
-                    positionHistory.current = addPositionToHistory(
-                        positionHistory.current,
-                        newPosition
-                    );
-
-                    // Calculate current average speed
-                    const avgSpeed = calculateAverageSpeed(positionHistory.current);
-
-                    // Check if consistently moving too fast (with 25s consistency window)
-                    // WARM-UP: Ignore speed limit for first 30 seconds to allow GPS to settle
-                    const isWarmingUp = Date.now() - initializationTime.current < 30000;
-                    const movingTooFast = !isWarmingUp && isConsistentlyMovingTooFast(positionHistory.current);
-
-                    setState({
-                        lat: newLat,
-                        lng: newLng,
-                        accuracy: position.coords.accuracy,
-                        speed: avgSpeed,
-                        isMovingTooFast: movingTooFast,
-                        error: null,
-                        loading: false,
-                        retrying: false,
-                        persistentError: false,
-                        permissionDenied: false,
-                    });
-                },
-                (error) => {
-                    if (error.code === error.PERMISSION_DENIED) {
-                        // User explicitly denied — no point retrying
-                        setState(s => ({
-                            ...s,
-                            error: error.message,
+                        setState({
+                            lat: newLat,
+                            lng: newLng,
+                            accuracy: position.coords.accuracy,
+                            speed: avgSpeed,
+                            isMovingTooFast: movingTooFast,
+                            error: null,
                             loading: false,
                             retrying: false,
-                            permissionDenied: true,
-                        }));
-                        return;
+                            persistentError: false,
+                            permissionDenied: false,
+                        });
                     }
+                );
 
-                    // POSITION_UNAVAILABLE (2) or TIMEOUT (3) — transient on Safari/iOS, retry
-                    if (watchId.current !== null) {
-                        navigator.geolocation.clearWatch(watchId.current);
-                        watchId.current = null;
-                    }
-
-                    if (retryCount.current < MAX_RETRIES) {
-                        retryCount.current += 1;
-                        // Stay silent during retries — no error UI yet
-                        setState(s => ({ ...s, retrying: true, error: null }));
-                        retryTimer.current = setTimeout(startWatch, RETRY_DELAY_MS);
-                    } else {
-                        // Exhausted retries — surface the persistent error
-                        setState(s => ({
-                            ...s,
-                            retrying: false,
-                            persistentError: true,
-                            loading: false,
-                            error: error.message,
-                        }));
-                    }
-                },
-                {
-                    enableHighAccuracy: true, // Still need high accuracy for gameplay
-                    timeout: 10000,           // 10s timeout (was 20s) - fail faster
-                    maximumAge: GPS_MAX_CACHE_AGE_MS,  // Accept cached position up to this age — major battery saver
+                if (isActive) {
+                    watchId.current = id;
+                } else {
+                    Geolocation.clearWatch({ id });
                 }
-            );
+            } catch (err: any) {
+                if (!isActive) return;
+                console.error("Failed to start watch:", err);
+                setState(s => ({
+                    ...s,
+                    error: err.message || 'Failed to start geolocation',
+                    loading: false,
+                    persistentError: true
+                }));
+            }
         };
 
         startWatch();
 
         return () => {
-            if (watchId.current !== null) navigator.geolocation.clearWatch(watchId.current);
-            if (retryTimer.current !== null) clearTimeout(retryTimer.current);
+            isActive = false;
+            if (watchId.current !== null) {
+                Geolocation.clearWatch({ id: watchId.current });
+                watchId.current = null;
+            }
+            if (retryTimer.current !== null) {
+                clearTimeout(retryTimer.current);
+            }
         };
     }, [enabled]);
 
