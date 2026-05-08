@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { db, auth } from './firebase';
-import { collection, doc, onSnapshot, setDoc, updateDoc, increment, getDocs, deleteDoc, query, where, getCountFromServer, runTransaction, writeBatch, arrayUnion, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, onSnapshot, setDoc, updateDoc, increment, getDocs, deleteDoc, query, where, getCountFromServer, runTransaction, writeBatch, arrayUnion, serverTimestamp, documentId } from 'firebase/firestore';
 
 
 import { findEnclosedAreas, type Territory } from './captureLogic';
@@ -145,7 +145,7 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
                     for (let i = 0; i < missingArray.length; i += 10) {
                         const chunk = missingArray.slice(i, i + 10);
                         try {
-                            const pQuery = query(collection(db, "players"), where("__name__", "in", chunk));
+                            const pQuery = query(collection(db, "players"), where(documentId(), "in", chunk));
                             const pSnap = await getDocs(pQuery);
                             pSnap.forEach(pDoc => {
                                 const data = pDoc.data();

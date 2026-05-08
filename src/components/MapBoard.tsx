@@ -45,16 +45,14 @@ interface MapBoardProps {
 export function MapBoard({ lat, lng, selectedGridKey, claims, exclusionZones, viewRadiusMeters = 200, onMapReady }: MapBoardProps) {
     const mapRef = useRef<any>(null);
 
-    // Initial View State — only computed once GPS coords are valid
-    // useMemo with lat/lng deps is safe here because we only render
-    // the Map component after lat/lng are non-null (see early return below)
+    // Initial View State — defaults to NYC if GPS is still loading
     const initialViewState = useMemo(() => ({
-        latitude: lat ?? 0,
-        longitude: lng ?? 0,
+        latitude: lat ?? 40.7128,
+        longitude: lng ?? -74.0060,
         zoom: 17,
         bearing: 0,
         pitch: 0
-    }), [lat, lng]); // Will only be used once — when map first mounts with real coords
+    }), [lat, lng]); // Will only be used once — when map first mounts
 
     // Smart re-center: fly to user position when they move off-screen
     useEffect(() => {
@@ -180,16 +178,11 @@ export function MapBoard({ lat, lng, selectedGridKey, claims, exclusionZones, vi
         console.log('[MapBoard] Claims updated:', Object.keys(claims).length, 'tiles');
     }, [claims]);
 
-    // Early return AFTER all hooks — wait for valid GPS before mounting map
-    // This ensures initialViewState is always set to the real user location
-    if (lat === null || lng === null) {
-        return (
-            <div className="flex items-center justify-center h-full w-full bg-slate-900 text-white flex-col gap-3">
-                <div className="w-8 h-8 border-4 border-blue-400 border-t-transparent rounded-full animate-spin" />
-                <div className="text-slate-400 text-sm">Locating...</div>
-            </div>
-        );
-    }
+    // Early return removed — we now allow the map to render at a fallback location
+    // to prevent infinite "Locating..." screens if GPS is delayed or denied.
+    
+    // Ensure we don't render the Marker if lat/lng are null
+    const hasValidCoords = lat !== null && lng !== null;
 
     return (
         <Map
@@ -377,10 +370,12 @@ export function MapBoard({ lat, lng, selectedGridKey, claims, exclusionZones, vi
                 />
             </Source>
 
-            {/* User Marker — lat/lng are guaranteed non-null here */}
-            <Marker longitude={lng!} latitude={lat!} anchor="center">
-                <div className="w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-lg animate-pulse" />
-            </Marker>
+            {/* User Marker — only shown when valid GPS coords exist */}
+            {hasValidCoords && (
+                <Marker longitude={lng!} latitude={lat!} anchor="center">
+                    <div className="w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-lg animate-pulse" />
+                </Marker>
+            )}
 
         </Map>
     );

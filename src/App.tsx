@@ -52,6 +52,7 @@ function App() {
   const [showDownloadNudge, setShowDownloadNudge] = useState(() =>
     !Capacitor.isNativePlatform() && localStorage.getItem('download_nudge_dismissed') !== 'true'
   );
+  const [dismissLocationError, setDismissLocationError] = useState(false);
   const { isSupported, requestPermissionAndRegister } = usePushNotifications();
   const mapInstanceRef = useRef<mapboxgl.Map | null>(null);
 
@@ -163,7 +164,7 @@ function App() {
   return (
     <div className="relative h-screen h-[100dvh] w-screen overflow-hidden bg-slate-900">
       {/* Location Error Overlay — shown when device/browser can't get a fix */}
-      {(userLocation.persistentError || userLocation.permissionDenied) && (
+      {(userLocation.persistentError || userLocation.permissionDenied) && !dismissLocationError && (
         <div className="fixed inset-0 z-[9999] bg-slate-900/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
           <div className="max-w-sm w-full space-y-5">
             <div className="w-16 h-16 mx-auto rounded-full bg-amber-500/20 flex items-center justify-center">
@@ -207,6 +208,14 @@ function App() {
                 </div>
               </div>
             )}
+            
+            {/* Dismiss Button for Reviewers / Users */}
+            <button
+              onClick={() => setDismissLocationError(true)}
+              className="w-full py-3 bg-slate-800 text-slate-300 hover:text-white font-bold rounded-xl transition-colors border border-slate-700"
+            >
+              Browse Map Only
+            </button>
           </div>
         </div>
       )}
