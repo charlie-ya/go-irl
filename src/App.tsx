@@ -66,11 +66,26 @@ function App() {
       );
     }
 
+    let timeoutId: any;
+
     const unsub = onAuthStateChanged(auth, (u) => {
+      clearTimeout(timeoutId);
       setUser(u);
       setAuthLoading(false);
     });
-    return () => unsub();
+
+    // Fallback timeout: If Firebase auth fails to respond within 5 seconds 
+    // (e.g. strict firewalls blocking auth servers, or IndexedDB lockups on iOS), 
+    // force the loading screen to drop so the user isn't stuck indefinitely.
+    timeoutId = setTimeout(() => {
+      console.warn('[Auth] Auth state check timed out. Forcing UI to load.');
+      setAuthLoading(false);
+    }, 5000);
+
+    return () => {
+      clearTimeout(timeoutId);
+      unsub();
+    };
 
   }, []);
 
