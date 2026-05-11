@@ -200,12 +200,20 @@ export async function purchasePack(productId: string): Promise<boolean> {
     const product = CdvPurchase.store.get(productId);
     if (!product) {
         console.error(`[IAP] Failed to load product definition from store for ${productId}`);
-        alert('This product is not currently available for purchase in your region.');
+        alert('The store is still loading. Please wait a moment and try again.');
+        return false;
+    }
+
+    // CdvPurchase v13: order via the product's first offer
+    const offer = product.getOffer();
+    if (!offer) {
+        console.error(`[IAP] No offer found for product ${productId}`);
+        alert('This product has no purchasable offer configured. Please try again later.');
         return false;
     }
 
     // Trigger the actual native OS billing sheet
-    CdvPurchase.store.order(product);
+    await offer.order();
     log(`Triggering native OS billing sheet for ${productId} (${pack.coins} coins)`);
     return true;
 }

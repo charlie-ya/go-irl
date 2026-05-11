@@ -30,6 +30,7 @@ import { db } from './lib/firebase';
 import { TextZoom } from '@capacitor/text-zoom';
 import { Capacitor } from '@capacitor/core';
 import { Bell } from 'lucide-react';
+import { initializeIAP } from './lib/iapService';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -64,6 +65,8 @@ function App() {
       TextZoom.set({ value: 1.0 }).catch((err: any) =>
         console.warn('Failed to set TextZoom', err)
       );
+      // Boot the native IAP store so products are registered before the Coin Shop opens
+      initializeIAP();
     }
 
     let timeoutId: any;

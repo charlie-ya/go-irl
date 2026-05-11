@@ -74,11 +74,17 @@ export const signInWithAppleNative = async () => {
             idToken: idToken,
         });
 
-        await signInWithCredential(auth, credential);
+        // Race signInWithCredential against an 8-second timeout.
+        // On restricted networks (e.g. Apple review environment), Firebase auth can
+        // hang indefinitely without this guard, causing the app to appear frozen.
+        const timeout = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Sign-in timed out. Please check your internet connection and try again.')), 8000)
+        );
+        await Promise.race([signInWithCredential(auth, credential), timeout]);
     } catch (error: any) {
         console.error("Error signing in with Apple Native", error);
         if (error?.message?.includes('canceled')) return;
-        alert(`Failed to sign in with Apple:\n${error.message}\n\nCheck console for more details.`);
+        alert(`Failed to sign in with Apple:\n${error.message}`);
     }
 };
 
