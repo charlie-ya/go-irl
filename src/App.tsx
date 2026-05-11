@@ -173,7 +173,15 @@ function App() {
     return activeTile?.ownerId === player.id;
   }, [currentGridKey, player?.id, claims]);
 
-  if (authLoading) return <div className="h-screen w-screen bg-slate-900 text-white flex items-center justify-center">Loading...</div>;
+  if (authLoading) return (
+    <div className="h-screen w-screen bg-slate-900 flex flex-col items-center justify-center gap-4">
+      <div className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-400 to-purple-400 text-transparent bg-clip-text">
+        Roamin' Empire
+      </div>
+      <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+      <p className="text-slate-500 text-sm">Signing in...</p>
+    </div>
+  );
   if (!user) return <Login />;
   if (!player || !player.hasCompletedOnboarding) {
     return <Onboarding onComplete={(name, color, refCode) => createPlayer(name, color, refCode)} />;

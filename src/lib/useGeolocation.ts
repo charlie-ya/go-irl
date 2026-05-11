@@ -49,8 +49,9 @@ export const isAndroidDevModeEnabled = (): boolean => {
     return false;
 };
 
-const MAX_RETRIES = 4;
-const RETRY_DELAY_MS = 3000;
+const MAX_RETRIES = 2;          // Max 2 retries
+const RETRY_DELAY_MS = 2000;    // 2s between retries
+// Total worst-case wait before persistentError: ~2 × (5s permission + 2s delay) = ~14s
 
 export function useGeolocation(enabled: boolean = true) {
     const [state, setState] = useState<LocationState>({
@@ -99,8 +100,13 @@ export function useGeolocation(enabled: boolean = true) {
 
         const startWatch = async () => {
             try {
-                // Request permissions first on native
-                await Geolocation.requestPermissions();
+                // Request permissions with a 5-second timeout to prevent
+                // indefinite hanging if the OS never responds (e.g. MDM policy,
+                // or cold boot before location services are initialized).
+                const permissionTimeout = new Promise<never>((_, reject) =>
+                    setTimeout(() => reject(new Error('Location permission request timed out.')), 5000)
+                );
+                await Promise.race([Geolocation.requestPermissions(), permissionTimeout]);
                 
                 const id = await Geolocation.watchPosition(
                     {

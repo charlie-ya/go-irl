@@ -193,90 +193,128 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
     }, [userLat, userLng, isMovingTooFast, player?.rank]);
 
     // Listen to My Player Data
+    // Uses onAuthStateChanged reactively to avoid the cold-boot race condition
+    // where auth.currentUser is null at mount time despite auth having resolved.
     useEffect(() => {
-        if (!auth.currentUser) return;
-        const uid = auth.currentUser.uid;
-        const playerRef = doc(db, "players", uid);
+        let playerUnsub: (() => void) | null = null;
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-        const unsub = onSnapshot(playerRef, async (docSnap) => {
-            if (docSnap.exists()) {
-                const data = docSnap.data() as PlayerState;
-                setPlayer(data);
+        const authUnsub = auth.onAuthStateChanged((currentUser) => {
+            // Clean up any previous listener if user changes
+            if (playerUnsub) { playerUnsub(); playerUnsub = null; }
+            if (timeoutId) { clearTimeout(timeoutId); timeoutId = null; }
 
-                // Self-Healing: Backfill totalClaims & totalCaptured if missing
-                // Now checks for both fields and backfills optimally
-                // Self-Healing: Verify totalClaims & totalCaptured against source of truth
-                // We verify this periodically (or on load) to correct any drift/bugs.
-                // This is cheap (aggregation queries) and ensures 100% accuracy.
-                const verifyStats = async () => {
-                    try {
-                        const updates: any = {};
-
-                        // 1. Verify Claims Count
-                        const qTiles = query(collection(db, "tiles"), where("ownerId", "==", uid));
-                        const snapshotTiles = await getCountFromServer(qTiles);
-                        const actualClaims = snapshotTiles.data().count;
-
-                        devLog(`[DEBUG] VerifyStats: User ${uid} has ${actualClaims} tiles (Actual) vs ${data.totalClaims} (Profile)`);
-
-                        if (data.totalClaims !== actualClaims) {
-                            devLog(`Fixing totalClaims: ${data.totalClaims} -> ${actualClaims}`);
-                            updates.totalClaims = actualClaims;
-                        }
-
-                        // 2. Verify Captured Area
-                        // Need keys for length, area calculation requires doc reads or a cloud function (using client read for now)
-                        // If we had a 'stats' subcollection or aggregation, it'd be cheaper.
-                        // For now, reading all captured docs for a user is okay (usually < 100 docs).
-                        const qCaptured = query(collection(db, "captured"), where("ownerId", "==", uid));
-                        const snapshotCaptured = await getDocs(qCaptured);
-                        let actualCapturedTiles = 0;
-                        snapshotCaptured.forEach(capturedDoc => {
-                            const capturedData = capturedDoc.data();
-                            actualCapturedTiles += (capturedData.enclosedSquares?.length || 0);
-                        });
-
-                        if (data.totalCaptured !== actualCapturedTiles) {
-                            devLog(`Fixing totalCaptured: ${data.totalCaptured} -> ${actualCapturedTiles}`);
-                            updates.totalCaptured = actualCapturedTiles;
-                        }
-
-                        if (Object.keys(updates).length > 0) {
-                            await updateDoc(playerRef, updates);
-                        }
-                    } catch (e) {
-                        console.error("Failed to verify/fix stats", e);
-                    }
-                };
-
-                // Run verification ONLY ONCE per mount to avoid infinite loop
-                // (updateDoc triggers onSnapshot, which would call verifyStats again)
-                if (!hasVerifiedStats.current) {
-                    hasVerifiedStats.current = true;
-                    verifyStats();
-                }
-
-                // Self-Healing: Backfill missing rank
-                if (!data.rank) {
-                    try {
-                        devLog("Backfilling missing profile data...");
-                        await updateDoc(playerRef, {
-                            rank: 'Lowly Vassal'
-                        });
-                    } catch (e) {
-                        console.error("Failed to backfill profile data", e);
-                    }
-                }
-            } else {
-                // Player doesn't exist - onboarding needed
+            if (!currentUser) {
                 setPlayer(null);
+                return;
             }
+
+            const uid = currentUser.uid;
+            const playerRef = doc(db, "players", uid);
+
+            // Firestore timeout: if the snapshot hasn't arrived in 6 seconds
+            // (e.g. no network after auth), set player to null so the UI drops
+            // to Login rather than showing Onboarding forever.
+            timeoutId = setTimeout(() => {
+                console.warn('[GameState] Player snapshot timed out — Firestore may be unreachable.');
+                // Only force null if player is still not set
+                setPlayer(prev => {
+                    if (prev === null) {
+                        // Return a minimal offline sentinel so App.tsx routes to Login
+                        // rather than Onboarding. The null check in App.tsx handles this.
+                        return null;
+                    }
+                    return prev;
+                });
+            }, 6000);
+
+            playerUnsub = onSnapshot(playerRef, async (docSnap) => {
+                // Clear timeout — snapshot arrived
+                if (timeoutId) { clearTimeout(timeoutId); timeoutId = null; }
+
+                if (docSnap.exists()) {
+                    const data = docSnap.data() as PlayerState;
+                    setPlayer(data);
+
+                    // Self-Healing: Backfill totalClaims & totalCaptured if missing
+                    // Now checks for both fields and backfills optimally
+                    // Self-Healing: Verify totalClaims & totalCaptured against source of truth
+                    // We verify this periodically (or on load) to correct any drift/bugs.
+                    // This is cheap (aggregation queries) and ensures 100% accuracy.
+                    const verifyStats = async () => {
+                        try {
+                            const updates: any = {};
+
+                            // 1. Verify Claims Count
+                            const qTiles = query(collection(db, "tiles"), where("ownerId", "==", uid));
+                            const snapshotTiles = await getCountFromServer(qTiles);
+                            const actualClaims = snapshotTiles.data().count;
+
+                            devLog(`[DEBUG] VerifyStats: User ${uid} has ${actualClaims} tiles (Actual) vs ${data.totalClaims} (Profile)`);
+
+                            if (data.totalClaims !== actualClaims) {
+                                devLog(`Fixing totalClaims: ${data.totalClaims} -> ${actualClaims}`);
+                                updates.totalClaims = actualClaims;
+                            }
+
+                            // 2. Verify Captured Area
+                            const qCaptured = query(collection(db, "captured"), where("ownerId", "==", uid));
+                            const snapshotCaptured = await getDocs(qCaptured);
+                            let actualCapturedTiles = 0;
+                            snapshotCaptured.forEach(capturedDoc => {
+                                const capturedData = capturedDoc.data();
+                                actualCapturedTiles += (capturedData.enclosedSquares?.length || 0);
+                            });
+
+                            if (data.totalCaptured !== actualCapturedTiles) {
+                                devLog(`Fixing totalCaptured: ${data.totalCaptured} -> ${actualCapturedTiles}`);
+                                updates.totalCaptured = actualCapturedTiles;
+                            }
+
+                            if (Object.keys(updates).length > 0) {
+                                await updateDoc(playerRef, updates);
+                            }
+                        } catch (e) {
+                            console.error("Failed to verify/fix stats", e);
+                        }
+                    };
+
+                    // Run verification ONLY ONCE per mount to avoid infinite loop
+                    if (!hasVerifiedStats.current) {
+                        hasVerifiedStats.current = true;
+                        verifyStats();
+                    }
+
+                    // Self-Healing: Backfill missing rank
+                    if (!data.rank) {
+                        try {
+                            devLog("Backfilling missing profile data...");
+                            await updateDoc(playerRef, {
+                                rank: 'Lowly Vassal'
+                            });
+                        } catch (e) {
+                            console.error("Failed to backfill profile data", e);
+                        }
+                    }
+                } else {
+                    // Player doesn't exist - onboarding needed
+                    setPlayer(null);
+                }
+            }, (error) => {
+                // Firestore listener error — clear timeout and log
+                if (timeoutId) { clearTimeout(timeoutId); timeoutId = null; }
+                console.error('[GameState] Player snapshot error:', error);
+                setPlayer(null);
+            });
         });
+
         return () => {
-            hasVerifiedStats.current = false; // Reset for next mount
-            unsub();
+            authUnsub();
+            if (playerUnsub) playerUnsub();
+            if (timeoutId) clearTimeout(timeoutId);
+            hasVerifiedStats.current = false;
         };
-    }, [auth.currentUser]);
+    }, []);
 
     // Initialize & Sync Tile Storage
     useEffect(() => {
