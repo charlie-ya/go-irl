@@ -212,4 +212,5 @@ __exportStar(require("./notifications"), exports);
 __exportStar(require("./playerActivity"), exports);
 __exportStar(require("./sacredZones"), exports);
 __exportStar(require("./deleteGameInformation"), exports);
+__exportStar(require("./verifyPurchase"), exports);
 //# sourceMappingURL=index.js.map

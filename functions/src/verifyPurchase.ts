@@ -17,7 +17,7 @@
  *   GOOGLE_SERVICE_ACCOUNT_KEY_JSON — Base64-encoded service account JSON
  */
 
-import * as functions from "firebase-functions";
+import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
 import * as https from "https";
 import { defineSecret } from "firebase-functions/params";
@@ -113,9 +113,9 @@ async function verifyGoogleReceipt(receipt: string, productId: string): Promise<
 }> {
     // The Google Play Developer API requires OAuth2 service account credentials.
     const keyJson = googleKey.value();
-    if (!keyJson) {
-        console.error("[verifyPurchase] GOOGLE_SERVICE_ACCOUNT_KEY_JSON not configured.");
-        throw new functions.https.HttpsError("internal", "Google IAP not configured.");
+    if (!keyJson || keyJson === 'NOT_CONFIGURED') {
+        console.warn("[verifyPurchase] GOOGLE_SERVICE_ACCOUNT_KEY_JSON not configured — Android billing not yet enabled.");
+        return { valid: false };
     }
 
     // Dynamically import googleapis
@@ -157,6 +157,8 @@ async function verifyGoogleReceipt(receipt: string, productId: string): Promise<
 
 // --- Main Cloud Function ---
 
+// Google key is optional — can be added later when Android billing is ready.
+// When absent or set to NOT_CONFIGURED, Android purchases return a graceful error.
 export const verifyPurchase = functions.runWith({
     secrets: [appleSecret, googleKey]
 }).https.onCall(async (request: any) => {
