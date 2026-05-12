@@ -177,15 +177,6 @@ export const verifyPurchase = functions.runWith({
         platform: "ios" | "android";
     };
 
-    // Diagnostic log — shows exactly what the client sent
-    console.log('[verifyPurchase] Received data:', JSON.stringify({
-        hasReceipt: !!receipt,
-        receiptLength: receipt?.length ?? 0,
-        receiptPreview: receipt ? receipt.substring(0, 80) : 'EMPTY',
-        clientProductId: productId || 'EMPTY',
-        platform: platform || 'EMPTY',
-        uid,
-    }));
 
     if (!receipt || !platform) {
         throw new functions.https.HttpsError(
