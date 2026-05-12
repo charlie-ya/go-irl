@@ -177,22 +177,26 @@ export const verifyPurchase = functions.runWith({
         platform: "ios" | "android";
     };
 
-    if (!receipt || !productId || !platform) {
+    // Diagnostic log — shows exactly what the client sent
+    console.log('[verifyPurchase] Received data:', JSON.stringify({
+        hasReceipt: !!receipt,
+        receiptLength: receipt?.length ?? 0,
+        receiptPreview: receipt ? receipt.substring(0, 80) : 'EMPTY',
+        clientProductId: productId || 'EMPTY',
+        platform: platform || 'EMPTY',
+        uid,
+    }));
+
+    if (!receipt || !platform) {
         throw new functions.https.HttpsError(
             "invalid-argument",
-            "receipt, productId, and platform are all required."
+            "receipt and platform are required."
         );
     }
 
-    const coinsToAward = COIN_AMOUNTS[productId];
-    if (coinsToAward === undefined) {
-        throw new functions.https.HttpsError(
-            "invalid-argument",
-            `Unknown productId: ${productId}`
-        );
-    }
-
-    // 2. Verify receipt with the appropriate store
+    // 2. Verify receipt with the appropriate store FIRST.
+    // We get the authoritative productId from Apple/Google's response,
+    // not from the client (more secure, and fixes bundle-ID vs product-ID mismatch).
     let verificationResult: { valid: boolean; productId?: string; transactionId?: string };
 
     if (platform === "ios") {
@@ -204,8 +208,18 @@ export const verifyPurchase = functions.runWith({
     }
 
     if (!verificationResult.valid) {
-        console.warn(`[verifyPurchase] Invalid receipt for uid=${uid} productId=${productId}`);
+        console.warn(`[verifyPurchase] Invalid receipt for uid=${uid}`);
         return { success: false, coinsAwarded: 0, message: "Receipt validation failed." };
+    }
+
+    // Use the verified productId from Apple/Google — not the client-sent value
+    const verifiedProductId = verificationResult.productId ?? productId;
+    console.log(`[verifyPurchase] Verified productId from store: ${verifiedProductId}`);
+
+    const coinsToAward = COIN_AMOUNTS[verifiedProductId];
+    if (coinsToAward === undefined) {
+        console.warn(`[verifyPurchase] Unknown productId after verification: ${verifiedProductId}`);
+        return { success: false, coinsAwarded: 0, message: `Unknown product: ${verifiedProductId}` };
     }
 
     const transactionId = verificationResult.transactionId ?? receipt.substring(0, 64);

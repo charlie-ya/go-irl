@@ -136,21 +136,28 @@ async function verifyGoogleReceipt(receipt, productId) {
 exports.verifyPurchase = functions.runWith({
     secrets: [appleSecret, googleKey]
 }).https.onCall(async (data, context) => {
-    var _a, _b;
+    var _a, _b, _c, _d;
     // 1. Authenticate
     if (!context.auth) {
         throw new functions.https.HttpsError("unauthenticated", "Must be authenticated to verify a purchase.");
     }
     const uid = context.auth.uid;
     const { receipt, productId, platform } = data;
-    if (!receipt || !productId || !platform) {
-        throw new functions.https.HttpsError("invalid-argument", "receipt, productId, and platform are all required.");
+    // Diagnostic log — shows exactly what the client sent
+    console.log('[verifyPurchase] Received data:', JSON.stringify({
+        hasReceipt: !!receipt,
+        receiptLength: (_a = receipt === null || receipt === void 0 ? void 0 : receipt.length) !== null && _a !== void 0 ? _a : 0,
+        receiptPreview: receipt ? receipt.substring(0, 80) : 'EMPTY',
+        clientProductId: productId || 'EMPTY',
+        platform: platform || 'EMPTY',
+        uid,
+    }));
+    if (!receipt || !platform) {
+        throw new functions.https.HttpsError("invalid-argument", "receipt and platform are required.");
     }
-    const coinsToAward = COIN_AMOUNTS[productId];
-    if (coinsToAward === undefined) {
-        throw new functions.https.HttpsError("invalid-argument", `Unknown productId: ${productId}`);
-    }
-    // 2. Verify receipt with the appropriate store
+    // 2. Verify receipt with the appropriate store FIRST.
+    // We get the authoritative productId from Apple/Google's response,
+    // not from the client (more secure, and fixes bundle-ID vs product-ID mismatch).
     let verificationResult;
     if (platform === "ios") {
         verificationResult = await verifyAppleReceipt(receipt);
@@ -162,10 +169,18 @@ exports.verifyPurchase = functions.runWith({
         throw new functions.https.HttpsError("invalid-argument", "Unknown platform.");
     }
     if (!verificationResult.valid) {
-        console.warn(`[verifyPurchase] Invalid receipt for uid=${uid} productId=${productId}`);
+        console.warn(`[verifyPurchase] Invalid receipt for uid=${uid}`);
         return { success: false, coinsAwarded: 0, message: "Receipt validation failed." };
     }
-    const transactionId = (_a = verificationResult.transactionId) !== null && _a !== void 0 ? _a : receipt.substring(0, 64);
+    // Use the verified productId from Apple/Google — not the client-sent value
+    const verifiedProductId = (_b = verificationResult.productId) !== null && _b !== void 0 ? _b : productId;
+    console.log(`[verifyPurchase] Verified productId from store: ${verifiedProductId}`);
+    const coinsToAward = COIN_AMOUNTS[verifiedProductId];
+    if (coinsToAward === undefined) {
+        console.warn(`[verifyPurchase] Unknown productId after verification: ${verifiedProductId}`);
+        return { success: false, coinsAwarded: 0, message: `Unknown product: ${verifiedProductId}` };
+    }
+    const transactionId = (_c = verificationResult.transactionId) !== null && _c !== void 0 ? _c : receipt.substring(0, 64);
     // 3. Replay attack check — has this transaction been credited already?
     const txRef = db.collection("iap_transactions").doc(transactionId);
     try {
@@ -190,7 +205,7 @@ exports.verifyPurchase = functions.runWith({
         });
     }
     catch (e) {
-        if (e.code === "already-exists" || ((_b = e.message) === null || _b === void 0 ? void 0 : _b.includes("already been processed"))) {
+        if (e.code === "already-exists" || ((_d = e.message) === null || _d === void 0 ? void 0 : _d.includes("already been processed"))) {
             // Idempotent — the client may retry after a network hiccup
             console.log(`[verifyPurchase] Duplicate transaction for uid=${uid}: ${transactionId}`);
             return { success: true, coinsAwarded: 0, message: "Already credited." };
