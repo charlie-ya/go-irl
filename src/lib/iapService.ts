@@ -149,11 +149,19 @@ export function initializeIAP(): void {
                 log('Server verified purchase — finishing transaction.');
                 transaction.verify(); // Triggers the verified() callback below
             } else {
+                // Permanent server rejection (invalid/duplicate receipt).
+                // Finish the transaction to clear it from the StoreKit queue.
                 console.error('[IAP] Server rejected purchase:', result.data.message);
-                alert('Purchase could not be verified. Please contact support if coins are missing.');
+                transaction.finish();
+                if (result.data.message !== 'Already credited.') {
+                    alert('Purchase could not be verified. Please contact support if coins are missing.');
+                }
             }
         } catch (e: any) {
+            // Cloud Function call failed (network/server error).
+            // Finish the transaction to prevent it from being replayed indefinitely.
             console.error('[IAP] Cloud Function call failed:', e);
+            transaction.finish();
             alert('Purchase verification failed. Your payment was not charged. Please try again.');
         }
     });
