@@ -127,52 +127,61 @@ export function initializeIAP(): void {
     store.error((err: any) => console.error('[IAP] Store Error:', err));
     store.ready(() => log('Native store fully initialized.'));
 
-    // --- Approved: send receipt to Cloud Function for server-side validation ---
-    store.when().approved(async (transaction: any) => {
-        log('Transaction approved — sending to server for verification:', transaction.transactionId);
+    // --- Validator: CdvPurchase calls this when transaction.verify() is triggered ---
+    // Using store.validator ensures CdvPurchase provides the FULL base64 app receipt
+    // (from NSBundle.main.appStoreReceiptURL on iOS), not just the transaction token.
+    // Sending just a token causes Apple status 21002 "malformed receipt data".
+    store.validator = async (receipt: any, callback: any) => {
+        log('Validating receipt for product:', receipt.id);
         try {
-            const functions = getFunctions();
-            const verifyPurchase = httpsCallable<
+            const fns = getFunctions();
+            const verifyFn = httpsCallable<
                 { receipt: string; productId: string; platform: string },
                 { success: boolean; coinsAwarded: number; message?: string }
-            >(functions, 'verifyPurchase');
+            >(fns, 'verifyPurchase');
 
-            const result = await verifyPurchase({
-                receipt: transaction.nativePurchase?.token
-                    ?? transaction.nativePurchase?.purchaseToken
-                    ?? transaction.transactionId,
-                productId: transaction.products?.[0]?.id ?? '',
+            // CdvPurchase provides the full app receipt for iOS here:
+            const receiptData: string =
+                receipt.transaction?.appStoreReceipt   // iOS full base64 receipt
+                ?? receipt.transaction?.purchaseToken  // Android purchase token
+                ?? receipt.transaction?.id             // fallback
+                ?? '';
+
+            const result = await verifyFn({
+                receipt: receiptData,
+                productId: receipt.id ?? '',
                 platform: Capacitor.getPlatform(),
             });
 
             if (result.data.success) {
-                log('Server verified purchase — finishing transaction.');
-                transaction.verify(); // Triggers the verified() callback below
+                callback({ ok: true, data: receipt });
             } else {
-                // Permanent server rejection (invalid/duplicate receipt).
-                // Finish the transaction to clear it from the StoreKit queue.
-                console.error('[IAP] Server rejected purchase:', result.data.message);
-                transaction.finish();
-                if (result.data.message !== 'Already credited.') {
+                const msg = result.data.message ?? '';
+                callback({ ok: false, status: 'receipt-invalid', message: msg });
+                if (msg !== 'Already credited.') {
                     alert('Purchase could not be verified. Please contact support if coins are missing.');
                 }
             }
         } catch (e: any) {
-            // Cloud Function call failed (network/server error).
-            // Finish the transaction to prevent it from being replayed indefinitely.
-            console.error('[IAP] Cloud Function call failed:', e);
-            transaction.finish();
+            console.error('[IAP] Validator error:', e);
+            callback({ ok: false, status: 'server-error', message: e.message });
             alert('Purchase verification failed. Your payment was not charged. Please try again.');
         }
+    };
+
+    // --- Approved: trigger the validator via transaction.verify() ---
+    store.when().approved((transaction: any) => {
+        log('Transaction approved — triggering verification:', transaction.transactionId);
+        transaction.verify();
     });
 
-    // --- Verified: confirmation that server has credited coins ---
+    // --- Verified: coins credited on server, finish the transaction ---
     store.when().verified((receipt: any) => {
         log('Receipt verified — finishing transaction.');
         receipt.finish();
-        // The server has already credited coins via Firestore; the onSnapshot listener
-        // in gameState.ts will update the balance in real-time.
+        // Coins credited by Cloud Function; Firestore onSnapshot updates balance in real-time.
         alert('Purchase successful! Your coins have been credited. 🪙');
+
     });
 
     store.initialize([Platform.APPLE_APPSTORE, Platform.GOOGLE_PLAY]);
