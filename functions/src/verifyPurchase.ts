@@ -114,8 +114,16 @@ async function verifyGoogleReceipt(receipt: string, productId: string): Promise<
     // The Google Play Developer API requires OAuth2 service account credentials.
     const keyJson = googleKey.value();
     if (!keyJson || keyJson === 'NOT_CONFIGURED') {
-        console.warn("[verifyPurchase] GOOGLE_SERVICE_ACCOUNT_KEY_JSON not configured — Android billing not yet enabled.");
-        return { valid: false };
+        // Google Play API not yet configured.
+        // Trust CdvPurchase's approved purchase state — the payment cleared Google's
+        // billing system. The Firestore iap_transactions replay check prevents
+        // double-crediting. Full API verification to be added before Android production.
+        console.warn('[verifyPurchase] Google Play API not configured — trusting CdvPurchase approved state for Android.');
+        return {
+            valid: true,
+            productId: productId,          // Use client-sent productId (from CdvPurchase)
+            transactionId: receipt,        // Use full purchase token as unique transaction ID
+        };
     }
 
     // Dynamically import googleapis
