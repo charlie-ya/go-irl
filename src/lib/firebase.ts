@@ -59,10 +59,19 @@ export const signInWithGoogle = async () => {
 
 export const signInWithAppleNative = async () => {
     try {
+        // Generate a secure random nonce (required by Apple for production Sign in with Apple).
+        // Send SHA-256 hash to Apple, raw value to Firebase.
+        const rawNonce = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+            .map(b => b.toString(16).padStart(2, '0')).join('');
+        const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(rawNonce));
+        const hashedNonce = Array.from(new Uint8Array(hashBuffer))
+            .map(b => b.toString(16).padStart(2, '0')).join('');
+
         const result = await SignInWithApple.authorize({
             clientId: 'com.goirl.app',
             redirectURI: '',
             scopes: 'email name',
+            nonce: hashedNonce,
         });
         
         const idToken = result.response.identityToken;
@@ -72,18 +81,18 @@ export const signInWithAppleNative = async () => {
 
         const credential = appleProvider.credential({
             idToken: idToken,
+            rawNonce: rawNonce,
         });
 
         // Race signInWithCredential against an 8-second timeout.
-        // On restricted networks (e.g. Apple review environment), Firebase auth can
-        // hang indefinitely without this guard, causing the app to appear frozen.
         const timeout = new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error('Sign-in timed out. Please check your internet connection and try again.')), 8000)
         );
         await Promise.race([signInWithCredential(auth, credential), timeout]);
     } catch (error: any) {
         console.error("Error signing in with Apple Native", error);
-        if (error?.message?.includes('canceled')) return;
+        // Code 1001 = user cancelled the Apple sheet
+        if (error?.message?.includes('canceled') || error?.code === '1001') return;
         alert(`Failed to sign in with Apple:\n${error.message}`);
     }
 };
