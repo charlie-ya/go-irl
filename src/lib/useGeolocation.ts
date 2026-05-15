@@ -104,7 +104,7 @@ export function useGeolocation(enabled: boolean = true) {
                 // indefinite hanging if the OS never responds (e.g. MDM policy,
                 // or cold boot before location services are initialized).
                 const permissionTimeout = new Promise<never>((_, reject) =>
-                    setTimeout(() => reject(new Error('Location permission request timed out.')), 5000)
+                    setTimeout(() => reject(new Error('Location permission request timed out. Please try restarting the app.')), 60000)
                 );
                 await Promise.race([Geolocation.requestPermissions(), permissionTimeout]);
                 
