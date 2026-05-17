@@ -11,18 +11,36 @@ export function Login() {
     const [loading, setLoading] = useState(false);
 
     const handleGoogleLogin = async () => {
-        if (Capacitor.isNativePlatform()) {
-            await signInWithGoogleNative();
-        } else {
-            await signInWithGoogle();
+        setError('');
+        setLoading(true);
+        try {
+            if (Capacitor.isNativePlatform()) {
+                await signInWithGoogleNative();
+            } else {
+                await signInWithGoogle();
+            }
+        } catch (err: any) {
+            console.error(err);
+            if (err) setError(err.message || 'An unknown error occurred');
+        } finally {
+            setLoading(false);
         }
     };
 
     const handleAppleLogin = async () => {
-        if (Capacitor.isNativePlatform()) {
-            await signInWithAppleNative();
-        } else {
-            await signInWithApple();
+        setError('');
+        setLoading(true);
+        try {
+            if (Capacitor.isNativePlatform()) {
+                await signInWithAppleNative();
+            } else {
+                await signInWithApple();
+            }
+        } catch (err: any) {
+            console.error(err);
+            if (err) setError(err.message || 'An unknown error occurred');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -61,20 +79,27 @@ export function Login() {
             </div>
 
             <div className="flex flex-col gap-3 w-full max-w-[280px]">
+                {error && (
+                    <div className="p-3 mb-2 bg-red-900/50 border border-red-500 rounded-lg">
+                        <p className="text-red-200 text-sm text-center">{error}</p>
+                    </div>
+                )}
                 <button
                     onClick={handleAppleLogin}
-                    className="bg-black text-white font-bold py-3 px-8 rounded-full shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3 border border-slate-800"
+                    disabled={loading}
+                    className="bg-black text-white font-bold py-3 px-8 rounded-full shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3 border border-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     <span className="text-xl -mt-1"></span>
-                    Sign in with Apple
+                    {loading ? 'Signing in...' : 'Sign in with Apple'}
                 </button>
 
                 <button
                     onClick={handleGoogleLogin}
-                    className="bg-white text-slate-900 font-bold py-3 px-8 rounded-full shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3"
+                    disabled={loading}
+                    className="bg-white text-slate-900 font-bold py-3 px-8 rounded-full shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" />
-                    Sign in with Google
+                    {loading ? 'Signing in...' : 'Sign in with Google'}
                 </button>
             </div>
 

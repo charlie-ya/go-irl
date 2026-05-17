@@ -41,19 +41,29 @@ export const signInWithGoogleNative = async () => {
         const user = await GoogleAuth.signIn();
         const idToken = user.authentication.idToken;
         const credential = GoogleAuthProvider.credential(idToken);
-        await signInWithCredential(auth, credential);
+        
+        const timeout = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Sign-in timed out. Please check your internet connection and try again.')), 8000)
+        );
+        await Promise.race([signInWithCredential(auth, credential), timeout]);
     } catch (error: any) {
         console.error("Error signing in with Google Native", error);
-        alert(`Failed to sign in:\n${error.message}\n\nCheck console for more details.`);
+        // Code 12501 = user canceled the Google sheet
+        if (error?.code === 12501 || error?.message?.includes('canceled')) return;
+        throw error;
     }
 };
 
 export const signInWithGoogle = async () => {
     try {
-        await signInWithPopup(auth, googleProvider);
+        const timeout = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Sign-in timed out.')), 15000)
+        );
+        await Promise.race([signInWithPopup(auth, googleProvider), timeout]);
     } catch (error: any) {
         console.error("Error signing in with Google", error);
-        alert(`Failed to sign in:\n${error.message}\n\nCheck console for more details.`);
+        if (error?.code === 'auth/popup-closed-by-user') return;
+        throw error;
     }
 };
 
@@ -93,7 +103,7 @@ export const signInWithAppleNative = async () => {
         console.error("Error signing in with Apple Native", error);
         // Code 1001 = user cancelled the Apple sheet
         if (error?.message?.includes('canceled') || error?.code === '1001') return;
-        alert(`Failed to sign in with Apple:\n${error.message}`);
+        throw error;
     }
 };
 
@@ -103,13 +113,16 @@ export const signInWithApple = async () => {
     } catch (error: any) {
         console.error("Error signing in with Apple", error);
         if (error?.code === 'auth/popup-closed-by-user') return;
-        alert(`Failed to sign in with Apple:\n${error.message}\n\nCheck console for more details.`);
+        throw error;
     }
 };
 
 export const signInWithEmail = async (email: string, password: string) => {
     try {
-        await signInWithEmailAndPassword(auth, email, password);
+        const timeout = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Sign-in timed out. Please check your internet connection and try again.')), 8000)
+        );
+        await Promise.race([signInWithEmailAndPassword(auth, email, password), timeout]);
     } catch (error: any) {
         console.error("Error signing in with email", error);
         throw error;
