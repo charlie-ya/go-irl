@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { LogOut, Settings, Trophy, ChevronDown, Crown, BookOpen } from 'lucide-react';
+import { LogOut, Settings, Trophy, ChevronDown, Crown, BookOpen, Map } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 
 interface ProfileStatsPanelProps {
     explorerName?: string;
@@ -15,6 +16,9 @@ interface ProfileStatsPanelProps {
     onAscend: () => void;
     onShowRules: () => void;
     onLogout: () => void;
+    // Current player location, needed for Apple Maps link
+    lat?: number;
+    lng?: number;
 }
 
 export function ProfileStatsPanel({ 
@@ -30,7 +34,9 @@ export function ProfileStatsPanel({
     onLeaderboard, 
     onAscend,
     onShowRules,
-    onLogout 
+    onLogout,
+    lat,
+    lng,
 }: ProfileStatsPanelProps) {
     const [isOpen, setIsOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -123,6 +129,20 @@ export function ProfileStatsPanel({
                         <span className="text-sm font-medium">The Rules</span>
                     </button>
                     
+                    {/* Apple Maps — iOS only, required by App Store Review Guideline 4.0 */}
+                    {Capacitor.getPlatform() === 'ios' && lat !== undefined && lng !== undefined && (
+                        <button
+                            onClick={() => {
+                                window.open(`maps://?ll=${lat},${lng}&q=My+Location`, '_system');
+                                setIsOpen(false);
+                            }}
+                            className="flex items-center gap-2 px-3 py-2 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors text-left w-full group"
+                        >
+                            <Map className="w-4 h-4 group-hover:scale-110 transition-transform text-blue-400/80 group-hover:text-blue-300" />
+                            <span className="text-sm font-medium">View in Apple Maps</span>
+                        </button>
+                    )}
+
                     <div className="h-px bg-slate-700/50 my-1 mx-2"></div>
                     
                     <button onClick={() => { setIsOpen(false); onLogout(); }} className="flex items-center gap-2 px-3 py-2 text-red-400 hover:text-red-300 hover:bg-slate-800 transition-colors text-left w-full group">

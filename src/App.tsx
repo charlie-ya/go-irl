@@ -277,6 +277,8 @@ function App() {
           onAscend={() => setShowAscendDialog(true)}
           onShowRules={() => setShowRules(true)}
           onLogout={() => logout()}
+          lat={userLocation.lat ?? undefined}
+          lng={userLocation.lng ?? undefined}
         />
       </div>
 
