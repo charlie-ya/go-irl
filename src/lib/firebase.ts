@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, OAuthProvider, signInWithPopup, signOut, signInWithCredential, signInWithEmailAndPassword } from "firebase/auth";
+import { getAuth, setPersistence, inMemoryPersistence, GoogleAuthProvider, OAuthProvider, signInWithPopup, signOut, signInWithCredential, signInWithEmailAndPassword } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import { SignInWithApple } from '@capacitor-community/apple-sign-in';
@@ -22,6 +22,19 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const googleProvider = new GoogleAuthProvider();
 export const appleProvider = new OAuthProvider('apple.com');
+
+// WKWebView (Capacitor on iOS) has unreliable IndexedDB support — it can be
+// completely unavailable when the device has "Prevent Cross-Site Tracking"
+// enabled (the iOS default). Firebase Auth's default LOCAL persistence uses
+// IndexedDB, which causes silent hangs or failures on sign-in.
+// Switching to inMemoryPersistence on iOS native bypasses this entirely.
+// Tradeoff: the user must re-authenticate after a full app kill, but Apple
+// Sign In and Google Sign In handle silent re-auth automatically in practice.
+if (Capacitor.getPlatform() === 'ios') {
+    setPersistence(auth, inMemoryPersistence).catch(err =>
+        console.warn('[Firebase] Failed to set inMemoryPersistence on iOS:', err)
+    );
+}
 
 export const signInWithGoogleNative = async () => {
     try {
@@ -119,8 +132,11 @@ export const signInWithApple = async () => {
 
 export const signInWithEmail = async (email: string, password: string) => {
     try {
+        // 15s timeout — longer than Apple/Google because email auth involves
+        // an additional server-side password verification round trip, and
+        // BrowserStack iOS devices can have higher latency to Firebase.
         const timeout = new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('Sign-in timed out. Please check your internet connection and try again.')), 8000)
+            setTimeout(() => reject(new Error('Sign-in timed out. Please check your internet connection and try again.')), 15000)
         );
         await Promise.race([signInWithEmailAndPassword(auth, email, password), timeout]);
     } catch (error: any) {
