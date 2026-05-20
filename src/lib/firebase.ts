@@ -30,14 +30,20 @@ export const appleProvider = new OAuthProvider('apple.com');
 // Switching to inMemoryPersistence on iOS native bypasses this entirely.
 // Tradeoff: the user must re-authenticate after a full app kill, but Apple
 // Sign In and Google Sign In handle silent re-auth automatically in practice.
-if (Capacitor.getPlatform() === 'ios') {
-    setPersistence(auth, inMemoryPersistence).catch(err =>
+//
+// IMPORTANT: This must be awaited in each sign-in function before calling
+// Firebase auth methods. If sign-in is called before this resolves, Firebase
+// will internally queue it, adding significant hidden latency (especially on
+// slow networks like BrowserStack's proxy infrastructure).
+const persistenceReady: Promise<void> = Capacitor.getPlatform() === 'ios'
+    ? setPersistence(auth, inMemoryPersistence).catch(err =>
         console.warn('[Firebase] Failed to set inMemoryPersistence on iOS:', err)
-    );
-}
+    )
+    : Promise.resolve();
 
 export const signInWithGoogleNative = async () => {
     try {
+        await persistenceReady; // ensure inMemoryPersistence is set before signing in
         const authOptions: any = {
             scopes: ['profile', 'email'],
             grantOfflineAccess: true,
@@ -56,7 +62,7 @@ export const signInWithGoogleNative = async () => {
         const credential = GoogleAuthProvider.credential(idToken);
         
         const timeout = new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('Sign-in timed out. Please check your internet connection and try again.')), 8000)
+            setTimeout(() => reject(new Error('Sign-in timed out. Please check your internet connection and try again.')), 20000)
         );
         await Promise.race([signInWithCredential(auth, credential), timeout]);
     } catch (error: any) {
@@ -82,6 +88,7 @@ export const signInWithGoogle = async () => {
 
 export const signInWithAppleNative = async () => {
     try {
+        await persistenceReady; // ensure inMemoryPersistence is set before signing in
         // Generate a secure random nonce (required by Apple for production Sign in with Apple).
         // Send SHA-256 hash to Apple, raw value to Firebase.
         const rawNonce = Array.from(crypto.getRandomValues(new Uint8Array(32)))
@@ -107,9 +114,9 @@ export const signInWithAppleNative = async () => {
             rawNonce: rawNonce,
         });
 
-        // Race signInWithCredential against an 8-second timeout.
+        // Race signInWithCredential against a 20-second timeout.
         const timeout = new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('Sign-in timed out. Please check your internet connection and try again.')), 8000)
+            setTimeout(() => reject(new Error('Sign-in timed out. Please check your internet connection and try again.')), 20000)
         );
         await Promise.race([signInWithCredential(auth, credential), timeout]);
     } catch (error: any) {
@@ -132,11 +139,11 @@ export const signInWithApple = async () => {
 
 export const signInWithEmail = async (email: string, password: string) => {
     try {
-        // 15s timeout — longer than Apple/Google because email auth involves
-        // an additional server-side password verification round trip, and
-        // BrowserStack iOS devices can have higher latency to Firebase.
+        await persistenceReady; // ensure inMemoryPersistence is set before signing in
+        // 30s timeout — BrowserStack iOS devices route through slow proxies
+        // that add significant round-trip latency to Firebase endpoints.
         const timeout = new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('Sign-in timed out. Please check your internet connection and try again.')), 15000)
+            setTimeout(() => reject(new Error('Sign-in timed out. Please check your internet connection and try again.')), 30000)
         );
         await Promise.race([signInWithEmailAndPassword(auth, email, password), timeout]);
     } catch (error: any) {
