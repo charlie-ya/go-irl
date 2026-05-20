@@ -52,12 +52,18 @@ export function Login() {
             await signInWithEmail(email, password);
         } catch (err: any) {
             const code = err?.code || '';
+            const message = err?.message || '';
             if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
                 setError('Invalid email or password.');
             } else if (code === 'auth/too-many-requests') {
                 setError('Too many attempts. Try again later.');
+            } else if (code === 'auth/network-request-failed') {
+                setError('Network error. Please check your connection and try again.');
+            } else if (message.includes('timed out')) {
+                setError('Sign-in timed out. Please check your connection and try again.');
             } else {
-                setError('Sign in failed. Please try again.');
+                // Surface the real error for diagnosis — remove or soften before final release
+                setError(`Sign in failed (${code || 'unknown'}): ${message || 'No details available.'}`);
             }
         } finally {
             setLoading(false);
@@ -118,8 +124,12 @@ export function Login() {
                         type="email"
                         placeholder="Email"
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        onChange={(e) => setEmail(e.target.value.trim())}
                         required
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        autoComplete="email"
+                        inputMode="email"
                         className="bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
                     />
                     <input
@@ -128,6 +138,7 @@ export function Login() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
+                        autoComplete="current-password"
                         className="bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
                     />
                     {error && (
