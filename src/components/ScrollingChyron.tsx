@@ -53,19 +53,61 @@ function getDefaultMessages(tilesCount: number, territoriesCount: number): Chyro
     ];
 }
 
+function filterDynamicMessages(templates: any[], tilesCount: number, territoriesCount: number): ChyronMessage[] {
+    return templates
+        .filter(t => {
+            const minTiles = t.minTiles !== undefined && t.minTiles !== null ? t.minTiles : 0;
+            const maxTiles = t.maxTiles !== undefined && t.maxTiles !== null ? t.maxTiles : Infinity;
+            const minTerr = t.minTerritories !== undefined && t.minTerritories !== null ? t.minTerritories : 0;
+            const maxTerr = t.maxTerritories !== undefined && t.maxTerritories !== null ? t.maxTerritories : Infinity;
+
+            return tilesCount >= minTiles && 
+                   tilesCount <= maxTiles && 
+                   territoriesCount >= minTerr && 
+                   territoriesCount <= maxTerr;
+        })
+        .map((t, idx) => ({
+            id: t.id || `remote_${idx}`,
+            type: t.type || 'tutorial',
+            icon: t.icon || '💡',
+            content: t.content || '',
+            priority: t.priority || 1
+        }));
+}
+
 export function ScrollingChyron({ claims, userLat, userLng, myId, blockLeader, isBlockLeaderMe, tilesCount, territoriesCount }: ScoringChyronProps) {
     const [messages, setMessages] = useState<ChyronMessage[]>(() => getDefaultMessages(tilesCount, territoriesCount));
+    const [remoteTemplates, setRemoteTemplates] = useState<any[]>([]);
     const lastGridKeyRef = useRef<string | null>(null);
 
-    // Re-build base messages when player progression changes
+    // Fetch remote templates dynamically on mount to support dynamic game messaging
+    useEffect(() => {
+        let active = true;
+        import('../lib/firebase').then(({ fetchChyronTemplates }) => {
+            fetchChyronTemplates().then(templates => {
+                if (active && templates && templates.length > 0) {
+                    setRemoteTemplates(templates);
+                }
+            });
+        }).catch(err => {
+            console.warn('[Chyron] Remote Config module load failed, relying on fallback:', err);
+        });
+        return () => {
+            active = false;
+        };
+    }, []);
+
+    // Re-build base messages when player progression or remote templates change
     useEffect(() => {
         setMessages(prev => {
-            const base = getDefaultMessages(tilesCount, territoriesCount);
+            const base = remoteTemplates.length > 0
+                ? filterDynamicMessages(remoteTemplates, tilesCount, territoriesCount)
+                : getDefaultMessages(tilesCount, territoriesCount);
             // Preserve any injected welcome/leader messages at the front
             const injected = prev.filter(m => m.type === 'welcome' || m.id.startsWith('leader_'));
             return [...injected, ...base];
         });
-    }, [tilesCount, territoriesCount]);
+    }, [tilesCount, territoriesCount, remoteTemplates]);
 
     // Monitor location for Welcome messages
     useEffect(() => {

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Geolocation } from '@capacitor/geolocation';
+import { Capacitor } from '@capacitor/core';
 import {
     addPositionToHistory,
     calculateAverageSpeed,
@@ -103,10 +104,12 @@ export function useGeolocation(enabled: boolean = true) {
                 // Request permissions with a 5-second timeout to prevent
                 // indefinite hanging if the OS never responds (e.g. MDM policy,
                 // or cold boot before location services are initialized).
-                const permissionTimeout = new Promise<never>((_, reject) =>
-                    setTimeout(() => reject(new Error('Location permission request timed out. Please try restarting the app.')), 60000)
-                );
-                await Promise.race([Geolocation.requestPermissions(), permissionTimeout]);
+                if (Capacitor.isNativePlatform()) {
+                    const permissionTimeout = new Promise<never>((_, reject) =>
+                        setTimeout(() => reject(new Error('Location permission request timed out. Please try restarting the app.')), 60000)
+                    );
+                    await Promise.race([Geolocation.requestPermissions(), permissionTimeout]);
+                }
                 
                 const id = await Geolocation.watchPosition(
                     {

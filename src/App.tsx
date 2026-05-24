@@ -15,6 +15,7 @@ import { ReferralPanel } from './components/ReferralPanel';
 import { LeaderboardPanel } from './components/LeaderboardPanel';
 import { ProfileStatsPanel } from './components/ProfileStatsPanel';
 import { RulesModal } from './components/RulesModal';
+import { AppStoreBadge, PlayStoreBadge } from './components/Badges';
 import { useGeolocation, isAndroidDevModeEnabled } from './lib/useGeolocation';
 import { useGameState } from './lib/gameState';
 import { getGridKey, parseGridKey, getGridFloats } from './lib/gridSystem';
@@ -214,21 +215,21 @@ function App() {
                 <p className="text-white font-semibold text-sm">Get the free app for the best experience</p>
                 <div className="flex gap-2">
                   <a
-                    href="https://apps.apple.com/app/roamin-empire/id6745786064"
+                    href="https://apps.apple.com/us/app/roamin-empire/id6763377026"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 flex items-center justify-center gap-1.5 bg-white text-slate-900 font-bold text-sm py-2.5 rounded-xl hover:bg-slate-100 transition-colors"
+                    className="flex-1 block"
                   >
-                    🍎 App Store
+                    <AppStoreBadge />
                   </a>
                   {Capacitor.getPlatform() !== 'ios' && (
                     <a
                       href="https://play.google.com/store/apps/details?id=com.goirl.app"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1 flex items-center justify-center gap-1.5 bg-slate-900 text-white font-bold text-sm py-2.5 rounded-xl hover:bg-slate-700 transition-colors border border-slate-600"
+                      className="flex-1 block"
                     >
-                      🤖 Play Store
+                      <PlayStoreBadge />
                     </a>
                   )}
                 </div>
@@ -379,14 +380,14 @@ function App() {
             <div className="flex-1 min-w-0">
               <p className="text-white text-xs font-semibold">Get the full experience</p>
               <div className="flex gap-2 mt-1.5">
-                <a href="https://apps.apple.com/app/roamin-empire/id6745786064" target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1 bg-white text-slate-900 font-bold text-[11px] py-1 px-2.5 rounded-lg hover:bg-slate-100 transition-colors">
-                  🍎 App Store
+                <a href="https://apps.apple.com/us/app/roamin-empire/id6763377026" target="_blank" rel="noopener noreferrer"
+                  className="block shrink-0">
+                  <AppStoreBadge />
                 </a>
                 {Capacitor.getPlatform() !== 'ios' && (
                   <a href="https://play.google.com/store/apps/details?id=com.goirl.app" target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-1 bg-white text-slate-900 font-bold text-[11px] py-1 px-2.5 rounded-lg hover:bg-slate-100 transition-colors">
-                    🤖 Google Play
+                    className="block shrink-0">
+                    <PlayStoreBadge />
                   </a>
                 )}
               </div>

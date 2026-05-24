@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, setPersistence, inMemoryPersistence, GoogleAuthProvider, OAuthProvider, signInWithPopup, signOut, signInWithCredential, signInWithEmailAndPassword } from "firebase/auth";
+import { initializeAuth, inMemoryPersistence, browserLocalPersistence, GoogleAuthProvider, OAuthProvider, signInWithPopup, signOut, signInWithCredential, signInWithEmailAndPassword } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getRemoteConfig, getValue, fetchAndActivate } from "firebase/remote-config";
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import { SignInWithApple } from '@capacitor-community/apple-sign-in';
 import { Capacitor } from '@capacitor/core';
@@ -18,32 +19,26 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
+// For iOS native app build, enforce inMemoryPersistence on initialization to completely prevent
+// Safari WebKit storage partition hangs (Prevent Cross-Site Tracking IndexedDB bugs).
+// For Web & Android builds, continue using the persistent browserLocalPersistence for high-UX sessions.
+export const auth = Capacitor.getPlatform() === 'ios'
+    ? initializeAuth(app, { persistence: inMemoryPersistence })
+    : initializeAuth(app, { persistence: browserLocalPersistence });
 export const db = getFirestore(app);
 export const googleProvider = new GoogleAuthProvider();
 export const appleProvider = new OAuthProvider('apple.com');
 
-// WKWebView (Capacitor on iOS) has unreliable IndexedDB support — it can be
-// completely unavailable when the device has "Prevent Cross-Site Tracking"
-// enabled (the iOS default). Firebase Auth's default LOCAL persistence uses
-// IndexedDB, which causes silent hangs or failures on sign-in.
-// Switching to inMemoryPersistence on iOS native bypasses this entirely.
-// Tradeoff: the user must re-authenticate after a full app kill, but Apple
-// Sign In and Google Sign In handle silent re-auth automatically in practice.
-//
-// IMPORTANT: This must be awaited in each sign-in function before calling
-// Firebase auth methods. If sign-in is called before this resolves, Firebase
-// will internally queue it, adding significant hidden latency (especially on
-// slow networks like BrowserStack's proxy infrastructure).
-const persistenceReady: Promise<void> = Capacitor.getPlatform() === 'ios'
-    ? setPersistence(auth, inMemoryPersistence).catch(err =>
-        console.warn('[Firebase] Failed to set inMemoryPersistence on iOS:', err)
-    )
-    : Promise.resolve();
+// Initialize Firebase Remote Config
+export const remoteConfig = getRemoteConfig(app);
+// Dev mode fetches immediately; production defaults to 12-hour cache window (43,200,000 ms)
+remoteConfig.settings.minimumFetchIntervalMillis = import.meta.env.DEV ? 0 : 43200000;
+remoteConfig.defaultConfig = {
+    chyron_templates: "[]"
+};
 
 export const signInWithGoogleNative = async () => {
     try {
-        await persistenceReady; // ensure inMemoryPersistence is set before signing in
         const authOptions: any = {
             scopes: ['profile', 'email'],
             grantOfflineAccess: true,
@@ -88,7 +83,6 @@ export const signInWithGoogle = async () => {
 
 export const signInWithAppleNative = async () => {
     try {
-        await persistenceReady; // ensure inMemoryPersistence is set before signing in
         // Generate a secure random nonce (required by Apple for production Sign in with Apple).
         // Send SHA-256 hash to Apple, raw value to Firebase.
         const rawNonce = Array.from(crypto.getRandomValues(new Uint8Array(32)))
@@ -139,7 +133,6 @@ export const signInWithApple = async () => {
 
 export const signInWithEmail = async (email: string, password: string) => {
     try {
-        await persistenceReady; // ensure inMemoryPersistence is set before signing in
         // 30s timeout — BrowserStack iOS devices route through slow proxies
         // that add significant round-trip latency to Firebase endpoints.
         const timeout = new Promise<never>((_, reject) =>
@@ -153,3 +146,17 @@ export const signInWithEmail = async (email: string, password: string) => {
 };
 
 export const logout = () => signOut(auth);
+
+export const fetchChyronTemplates = async (): Promise<any[]> => {
+    try {
+        await fetchAndActivate(remoteConfig);
+        const templatesStr = getValue(remoteConfig, "chyron_templates").asString();
+        if (templatesStr && templatesStr !== "[]") {
+            const parsed = JSON.parse(templatesStr);
+            if (Array.isArray(parsed)) return parsed;
+        }
+    } catch (error) {
+        console.warn("[RemoteConfig] Failed to fetch chyron templates:", error);
+    }
+    return [];
+};

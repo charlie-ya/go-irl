@@ -90,14 +90,16 @@ export function Login() {
                         <p className="text-red-200 text-sm text-center">{error}</p>
                     </div>
                 )}
-                <button
-                    onClick={handleAppleLogin}
-                    disabled={loading}
-                    className="bg-black text-white font-bold py-3 px-8 rounded-full shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3 border border-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    <span className="text-xl -mt-1"></span>
-                    {loading ? 'Signing in...' : 'Sign in with Apple'}
-                </button>
+                {Capacitor.getPlatform() !== 'android' && (
+                    <button
+                        onClick={handleAppleLogin}
+                        disabled={loading}
+                        className="bg-black text-white font-bold py-3 px-8 rounded-full shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3 border border-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <span className="text-xl -mt-1"></span>
+                        {loading ? 'Signing in...' : 'Sign in with Apple'}
+                    </button>
+                )}
 
                 <button
                     onClick={handleGoogleLogin}

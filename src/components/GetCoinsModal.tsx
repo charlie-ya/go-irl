@@ -1,6 +1,7 @@
 import { X, Map, Users, ShoppingCart } from 'lucide-react';
 import { isIAPAvailable } from '../lib/iapService';
 import { Capacitor } from '@capacitor/core';
+import { AppStoreBadge, PlayStoreBadge } from './Badges';
 
 interface GetCoinsModalProps {
     isOpen: boolean;
@@ -104,21 +105,21 @@ export function GetCoinsModal({ isOpen, onClose, onOpenReferral, onOpenCoinShop 
                         </div>
                         <div className="flex gap-2 mt-3">
                             <a
-                                href="https://apps.apple.com/app/roamin-empire/id6745786064"
+                                href="https://apps.apple.com/us/app/roamin-empire/id6763377026"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex-1 flex items-center justify-center gap-1.5 bg-white text-slate-900 font-bold text-sm py-2.5 px-3 rounded-lg hover:bg-slate-100 transition-colors"
+                                className="flex-1 block"
                             >
-                                <span className="text-base">🍎</span> App Store
+                                <AppStoreBadge />
                             </a>
                             {Capacitor.getPlatform() !== 'ios' && (
                                 <a
                                     href="https://play.google.com/store/apps/details?id=com.goirl.app"
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex-1 flex items-center justify-center gap-1.5 bg-white text-slate-900 font-bold text-sm py-2.5 px-3 rounded-lg hover:bg-slate-100 transition-colors"
+                                    className="flex-1 block"
                                 >
-                                    <span className="text-base">🤖</span> Google Play
+                                    <PlayStoreBadge />
                                 </a>
                             )}
                         </div>
