@@ -406,9 +406,12 @@ function App() {
         </div>
       )}
 
+      {/* Controls: Only render when we have a real GPS position (not null).
+           When location is denied or unavailable, the map is browse-only. */}
+      {userLocation.lat !== null && userLocation.lng !== null && (
       <Controls
-        lat={userLocation.lat || 0}
-        lng={userLocation.lng || 0}
+        lat={userLocation.lat}
+        lng={userLocation.lng}
         locationLoading={userLocation.loading}
         selectedGridKey={selectedGridKey}
         onOffsetChange={setSelectionOffset}
@@ -446,6 +449,8 @@ function App() {
         tilesCount={tilesCount}
         territoriesCount={territoriesCount}
       />
+      )}
+
 
       {/* Speed Warning Overlay */}
       {userLocation.isMovingTooFast && (
