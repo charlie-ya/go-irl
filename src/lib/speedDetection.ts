@@ -1,7 +1,7 @@
 import { calculateDistance } from './geohashUtils';
 
 // Configuration constants
-export const SPEED_THRESHOLD_KMH = 10;           // Walking speed threshold
+export const SPEED_THRESHOLD_KMH = 15;           // Walking speed threshold
 export const CONSISTENCY_WINDOW_MS = 25000;     // 25 seconds for consistency check
 export const MIN_POSITIONS_FOR_CHECK = 5;       // Need 5+ positions for reliable check
 export const MIN_TIME_BETWEEN_POSITIONS = 2000; // Min 2s between position samples

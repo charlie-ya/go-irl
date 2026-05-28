@@ -39,6 +39,8 @@ interface ControlsProps {
     myOutgoingOffers: Offer[];
     tilesCount: number;
     territoriesCount: number;
+    isAutoClaimEnabled: boolean;
+    onToggleAutoClaim: () => void;
 }
 
 export function Controls({
@@ -46,7 +48,7 @@ export function Controls({
     onClaim, onMakeOffer, userBalance, onGetCoins,
     onAffirm, onCompleteCeremony, activeCeremony, playerRank,
     myId, myColor, claims, myOutgoingOffers,
-    tilesCount, territoriesCount
+    tilesCount, territoriesCount, isAutoClaimEnabled, onToggleAutoClaim
 }: ControlsProps) {
     const currentKey = locationLoading ? '...' : getGridKey(lat, lng);
     const activeKey = selectedGridKey || currentKey;
@@ -179,38 +181,53 @@ export function Controls({
                             </div>
                         </div>
                     )}
-                    <button
-                        onClick={() => {
-                            if (isOwnedByOther) {
-                                setShowOfferModal(true);
-                            } else if (userBalance < 1) {
-                                onGetCoins();
-                            } else {
-                                onClaim(activeKey);
-                            }
-                        }}
-                        disabled={locationLoading}
-                        className={`transition-all duration-300 font-bold py-3 px-6 rounded-full shadow-2xl flex items-center gap-2 text-base border-2 
-                            ${isOwnedByOther
-                                ? 'active:scale-95 bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-white/20'
-                                : 'active:scale-95 bg-gradient-to-r from-indigo-500 to-purple-600 text-white border-white/20'
-                            }`}
-                        style={{
-                            boxShadow: `0 0 20px ${isOwnedByOther ? '#10b981' : myColor}40`
-                        }}
-                    >
-                        {isOwnedByOther ? (
-                            <>
-                                <ShoppingCart className="w-4 h-4" />
-                                MAKE OFFER
-                            </>
-                        ) : (
-                            <>
-                                <Zap className="fill-current w-4 h-4" />
-                                CLAIM FOR 1 COIN
-                            </>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => {
+                                if (isOwnedByOther) {
+                                    setShowOfferModal(true);
+                                } else if (userBalance < 1) {
+                                    onGetCoins();
+                                } else {
+                                    onClaim(activeKey);
+                                }
+                            }}
+                            disabled={locationLoading}
+                            className={`transition-all duration-300 font-bold py-3 px-6 rounded-full shadow-2xl flex items-center gap-2 text-base border-2 
+                                ${isOwnedByOther
+                                    ? 'active:scale-95 bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-white/20'
+                                    : 'active:scale-95 bg-gradient-to-r from-indigo-500 to-purple-600 text-white border-white/20'
+                                }`}
+                            style={{
+                                boxShadow: `0 0 20px ${isOwnedByOther ? '#10b981' : myColor}40`
+                            }}
+                        >
+                            {isOwnedByOther ? (
+                                <>
+                                    <ShoppingCart className="w-4 h-4" />
+                                    MAKE OFFER
+                                </>
+                            ) : (
+                                <>
+                                    <Zap className={`fill-current w-4 h-4 ${isAutoClaimEnabled ? 'animate-pulse' : ''}`} />
+                                    {isAutoClaimEnabled ? 'AUTO-CLAIMING...' : 'CLAIM FOR 1 COIN'}
+                                </>
+                            )}
+                        </button>
+
+                        {territoriesCount > 0 && !isOwnedByOther && (
+                            <button 
+                                onClick={onToggleAutoClaim}
+                                className={`w-14 h-14 rounded-full flex items-center justify-center font-bold text-xs shadow-lg transition-all border-2
+                                    ${isAutoClaimEnabled 
+                                        ? 'bg-purple-600 text-white border-white animate-pulse' 
+                                        : 'bg-slate-800 text-slate-300 border-slate-600 hover:bg-slate-700'
+                                    }`}
+                            >
+                                AUTO
+                            </button>
                         )}
-                    </button>
+                    </div>
 
                     {/* Offer Modal */}
                     <OfferModal

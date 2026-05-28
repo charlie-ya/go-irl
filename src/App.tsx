@@ -8,6 +8,7 @@ import { ScrollingChyron } from './components/ScrollingChyron';
 import { SafetyWarning } from './components/SafetyWarning';
 import { OffersInbox } from './components/OffersInbox';
 import { CaptureCelebration } from './components/CaptureCelebration';
+import { AutoClaimTutorial } from './components/AutoClaimTutorial';
 import { GetCoinsModal } from './components/GetCoinsModal';
 import { CoinShop } from './components/CoinShop';
 import { NotificationOptInPrompt } from './components/NotificationOptInPrompt';
@@ -55,6 +56,8 @@ function App() {
     !Capacitor.isNativePlatform() && localStorage.getItem('download_nudge_dismissed') !== 'true'
   );
   const [dismissLocationError, setDismissLocationError] = useState(false);
+  const [showAutoClaimTutorial, setShowAutoClaimTutorial] = useState(false);
+  const [isAutoClaimEnabled, setIsAutoClaimEnabled] = useState(false);
   const { isSupported, requestPermissionAndRegister } = usePushNotifications();
   const mapInstanceRef = useRef<mapboxgl.Map | null>(null);
 
@@ -167,6 +170,39 @@ function App() {
     setSelectionOffset({ latOffset: 0, lngOffset: 0 });
   }, [currentGridKey]);
 
+  // The Auto-Claim Engine
+  const isClaimingRef = useRef(false);
+
+  useEffect(() => {
+    if (!isAutoClaimEnabled || !selectedGridKey || !player || userLocation.isMovingTooFast) return;
+
+    // Only claim unowned squares (moribund squares count as unowned for claiming mechanics)
+    const tile = claims[selectedGridKey];
+    if (tile && tile.status !== 'moribund') return;
+
+    // Must have balance
+    if (player.balance < 1) {
+      setIsAutoClaimEnabled(false);
+      return;
+    }
+
+    const executeAutoClaim = async () => {
+      if (isClaimingRef.current) return;
+      isClaimingRef.current = true;
+      try {
+        const result = await claimSquare(selectedGridKey);
+        if (result.bonus > 0) {
+          setCaptureBonusAmount(result.bonus);
+          setCapturedSquareCount(result.capturedCount);
+        }
+      } finally {
+        isClaimingRef.current = false;
+      }
+    };
+
+    executeAutoClaim();
+  }, [selectedGridKey, isAutoClaimEnabled, claims, player, userLocation.isMovingTooFast, claimSquare]);
+
   // Check if the current grid square is owned by the player
   const isOwnedByMe = useMemo(() => {
     if (!currentGridKey || !player?.id || !claims) return false;
@@ -190,6 +226,13 @@ function App() {
 
   return (
     <div className="relative h-screen h-[100dvh] w-screen overflow-hidden bg-slate-900">
+      {/* Notifications & Referrals */}
+      {showAutoClaimTutorial && (
+        <AutoClaimTutorial onClose={() => {
+          setShowAutoClaimTutorial(false);
+          localStorage.setItem('hasSeenAutoClaimTutorial', 'true');
+        }} />
+      )}
       {/* Location Error Overlay — shown when device/browser can't get a fix */}
       {(userLocation.persistentError || userLocation.permissionDenied) && !dismissLocationError && (
         <div className="fixed inset-0 z-[9999] bg-slate-900/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
@@ -448,6 +491,8 @@ function App() {
         claims={claims}
         tilesCount={tilesCount}
         territoriesCount={territoriesCount}
+        isAutoClaimEnabled={isAutoClaimEnabled}
+        onToggleAutoClaim={() => setIsAutoClaimEnabled(prev => !prev)}
       />
       )}
 
@@ -472,11 +517,17 @@ function App() {
           onDismiss={() => {
             setCaptureBonusAmount(0);
             setCapturedSquareCount(0);
+            if (!localStorage.getItem('hasSeenAutoClaimTutorial')) {
+              setShowAutoClaimTutorial(true);
+            }
           }}
           onShare={async () => {
             if (!mapInstanceRef.current || !player) {
               setCaptureBonusAmount(0);
               setCapturedSquareCount(0);
+              if (!localStorage.getItem('hasSeenAutoClaimTutorial')) {
+                setShowAutoClaimTutorial(true);
+              }
               return;
             }
             try {
