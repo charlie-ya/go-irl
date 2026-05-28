@@ -181,6 +181,20 @@ export function Controls({
                             </div>
                         </div>
                     )}
+
+                    {/* Auto-Claim Reminder */}
+                    {isAutoClaimEnabled && (
+                        <div className="flex items-start gap-2.5 bg-purple-900/80 border border-purple-500/40 rounded-xl px-3 py-2 max-w-xs animate-in slide-in-from-bottom-2 mb-2 shadow-lg backdrop-blur-sm">
+                            <span className="text-purple-400 text-lg flex-shrink-0 mt-0.5">ℹ️</span>
+                            <div>
+                                <p className="text-purple-200 text-xs font-bold uppercase tracking-wider">Auto-Claim is Active</p>
+                                <p className="text-purple-300/90 text-[11px] leading-snug mt-0.5">
+                                    Automatically claiming unowned squares for 1 coin as you walk. Runs until you enclose a territory or run out of coins.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => {
@@ -218,13 +232,14 @@ export function Controls({
                         {territoriesCount > 0 && !isOwnedByOther && (
                             <button 
                                 onClick={onToggleAutoClaim}
-                                className={`w-14 h-14 rounded-full flex items-center justify-center font-bold text-xs shadow-lg transition-all border-2
+                                className={`h-14 px-3 rounded-full flex flex-col items-center justify-center font-bold shadow-lg transition-all border-2
                                     ${isAutoClaimEnabled 
-                                        ? 'bg-purple-600 text-white border-white animate-pulse' 
-                                        : 'bg-slate-800 text-slate-300 border-slate-600 hover:bg-slate-700'
+                                        ? 'bg-purple-600 text-white border-white animate-pulse shadow-purple-500/50' 
+                                        : 'bg-slate-800 text-slate-400 border-slate-600 hover:bg-slate-700'
                                     }`}
                             >
-                                AUTO
+                                <span className="text-[10px] leading-tight uppercase tracking-wider opacity-80">Auto</span>
+                                <span className="text-sm leading-tight">{isAutoClaimEnabled ? 'ON' : 'OFF'}</span>
                             </button>
                         )}
                     </div>

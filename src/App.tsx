@@ -194,6 +194,7 @@ function App() {
         if (result.bonus > 0) {
           setCaptureBonusAmount(result.bonus);
           setCapturedSquareCount(result.capturedCount);
+          setIsAutoClaimEnabled(false); // Turn off auto-claim on capture
         }
       } finally {
         isClaimingRef.current = false;
@@ -463,6 +464,7 @@ function App() {
           if (result.bonus > 0) {
             setCaptureBonusAmount(result.bonus);
             setCapturedSquareCount(result.capturedCount);
+            setIsAutoClaimEnabled(false); // Turn off auto-claim on capture
           }
           return result;
         }}
