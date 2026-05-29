@@ -1,5 +1,5 @@
 import { Zap, Check, ShoppingCart, Shield, Footprints } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getGridKey } from '../lib/gridSystem';
 import { OfferModal } from './OfferModal';
 import { VirtualJoystick } from './VirtualJoystick';
@@ -54,6 +54,17 @@ export function Controls({
     const activeKey = selectedGridKey || currentKey;
     const tile = claims[activeKey];
     const [showOfferModal, setShowOfferModal] = useState(false);
+    const [showAutoToast, setShowAutoToast] = useState(false);
+
+    useEffect(() => {
+        if (isAutoClaimEnabled) {
+            setShowAutoToast(true);
+            const timer = setTimeout(() => setShowAutoToast(false), 4000);
+            return () => clearTimeout(timer);
+        } else {
+            setShowAutoToast(false);
+        }
+    }, [isAutoClaimEnabled]);
 
     const isOwnedByMe = tile && tile.ownerId === myId;
     // For claiming mechanics, a moribund square acts as if it is unowned
@@ -166,19 +177,6 @@ export function Controls({
                 </div>
             )}
 
-            {/* Auto-Claim Reminder */}
-            {isAutoClaimEnabled && (
-                <div className="flex items-start gap-2.5 bg-purple-900/80 border border-purple-500/40 rounded-xl px-3 py-2 max-w-xs animate-in slide-in-from-bottom-2 shadow-lg backdrop-blur-sm">
-                    <span className="text-purple-400 text-lg flex-shrink-0 mt-0.5">ℹ️</span>
-                    <div>
-                        <p className="text-purple-200 text-xs font-bold uppercase tracking-wider">Auto-Claim is Active</p>
-                        <p className="text-purple-300/90 text-[11px] leading-snug mt-0.5">
-                            Automatically claiming unowned squares for 1 coin as you walk. Unless turned off, it runs until you enclose a territory or run out of coins.
-                        </p>
-                    </div>
-                </div>
-            )}
-
             {/* Grouped Button Area */}
             {(() => {
                 const showClaimButton = !isOwnedByMe && !isCapturedByOther && !myPendingOffer;
@@ -203,7 +201,7 @@ export function Controls({
                         )}
 
                         <div className={`flex items-center gap-3 transition-all duration-300 ${
-                            groupButtons ? 'bg-slate-900/50 backdrop-blur-md p-2 rounded-[2.5rem] border border-white/10 shadow-2xl' : ''
+                            groupButtons ? 'bg-slate-900/20 backdrop-blur-sm p-2 rounded-[2.5rem] border border-white/10 shadow-lg' : ''
                         }`}>
                             {showClaimButton && (
                                 <button
@@ -266,6 +264,23 @@ export function Controls({
                 maxBid={userBalance}
                 minBid={2}
             />
+
+            {/* Overlay Toast Notification */}
+            {showAutoToast && (
+                <div className="fixed inset-0 z-[2500] pointer-events-none flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-[2px] animate-in fade-in duration-300">
+                    <div className="bg-purple-900/95 border border-purple-500/50 rounded-2xl p-6 max-w-sm shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-4">
+                        <div className="flex items-start gap-4">
+                            <span className="text-purple-400 text-3xl flex-shrink-0 mt-1">ℹ️</span>
+                            <div>
+                                <h3 className="text-purple-100 text-lg font-bold uppercase tracking-wider mb-2">Auto-Claim is Active</h3>
+                                <p className="text-purple-200 text-sm leading-relaxed">
+                                    Automatically claiming unowned squares for 1 coin as you walk. Unless turned off, it runs until you enclose a territory or run out of coins.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
