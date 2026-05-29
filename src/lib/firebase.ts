@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { initializeAuth, inMemoryPersistence, browserLocalPersistence, GoogleAuthProvider, OAuthProvider, signInWithPopup, signOut, signInWithCredential, signInWithEmailAndPassword } from "firebase/auth";
+import { initializeAuth, inMemoryPersistence, browserLocalPersistence, browserPopupRedirectResolver, GoogleAuthProvider, OAuthProvider, signInWithPopup, signOut, signInWithCredential, signInWithEmailAndPassword } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getRemoteConfig, getValue, fetchAndActivate } from "firebase/remote-config";
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
@@ -24,7 +24,7 @@ const app = initializeApp(firebaseConfig);
 // For Web & Android builds, continue using the persistent browserLocalPersistence for high-UX sessions.
 export const auth = Capacitor.getPlatform() === 'ios'
     ? initializeAuth(app, { persistence: inMemoryPersistence })
-    : initializeAuth(app, { persistence: browserLocalPersistence });
+    : initializeAuth(app, { persistence: browserLocalPersistence, popupRedirectResolver: browserPopupRedirectResolver });
 export const db = getFirestore(app);
 export const googleProvider = new GoogleAuthProvider();
 export const appleProvider = new OAuthProvider('apple.com');
