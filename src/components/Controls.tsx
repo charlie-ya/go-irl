@@ -166,94 +166,106 @@ export function Controls({
                 </div>
             )}
 
-            {/* Standard Claim/Offer Button */}
-            {!isOwnedByMe && !isCapturedByOther && !myPendingOffer && (
-                <>
-                    {/* Capture hint: shown until user has made their first capture */}
-                    {tilesCount >= 5 && territoriesCount === 0 && (
-                        <div className="flex items-start gap-2.5 bg-amber-900/70 border border-amber-500/40 rounded-xl px-3 py-2 max-w-xs animate-in slide-in-from-bottom-2">
-                            <span className="text-amber-400 text-lg flex-shrink-0 mt-0.5">💡</span>
-                            <div>
-                                <p className="text-amber-200 text-xs font-semibold">Try a capture!</p>
-                                <p className="text-amber-300/80 text-[11px] leading-snug mt-0.5">
-                                    Walk your claimed squares into a connected loop — the enclosed area fills automatically for bonus coins.
-                                </p>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Auto-Claim Reminder */}
-                    {isAutoClaimEnabled && (
-                        <div className="flex items-start gap-2.5 bg-purple-900/80 border border-purple-500/40 rounded-xl px-3 py-2 max-w-xs animate-in slide-in-from-bottom-2 mb-2 shadow-lg backdrop-blur-sm">
-                            <span className="text-purple-400 text-lg flex-shrink-0 mt-0.5">ℹ️</span>
-                            <div>
-                                <p className="text-purple-200 text-xs font-bold uppercase tracking-wider">Auto-Claim is Active</p>
-                                <p className="text-purple-300/90 text-[11px] leading-snug mt-0.5">
-                                    Automatically claiming unowned squares for 1 coin as you walk. Runs until you enclose a territory or run out of coins.
-                                </p>
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => {
-                                if (isOwnedByOther) {
-                                    setShowOfferModal(true);
-                                } else if (userBalance < 1) {
-                                    onGetCoins();
-                                } else {
-                                    onClaim(activeKey);
-                                }
-                            }}
-                            disabled={locationLoading}
-                            className={`transition-all duration-300 font-bold py-3 px-6 rounded-full shadow-2xl flex items-center gap-2 text-base border-2 
-                                ${isOwnedByOther
-                                    ? 'active:scale-95 bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-white/20'
-                                    : 'active:scale-95 bg-gradient-to-r from-indigo-500 to-purple-600 text-white border-white/20'
-                                }`}
-                            style={{
-                                boxShadow: `0 0 20px ${isOwnedByOther ? '#10b981' : myColor}40`
-                            }}
-                        >
-                            {isOwnedByOther ? (
-                                <>
-                                    <ShoppingCart className="w-4 h-4" />
-                                    MAKE OFFER
-                                </>
-                            ) : (
-                                <>
-                                    <Zap className={`fill-current w-4 h-4 ${isAutoClaimEnabled ? 'animate-pulse' : ''}`} />
-                                    {isAutoClaimEnabled ? 'AUTO-CLAIMING...' : 'CLAIM FOR 1 COIN'}
-                                </>
-                            )}
-                        </button>
-
-                        {territoriesCount > 0 && !isOwnedByOther && (
-                            <button 
-                                onClick={onToggleAutoClaim}
-                                className={`h-14 px-3 rounded-full flex flex-col items-center justify-center font-bold shadow-lg transition-all border-2
-                                    ${isAutoClaimEnabled 
-                                        ? 'bg-purple-600 text-white border-white animate-pulse shadow-purple-500/50' 
-                                        : 'bg-slate-800 text-slate-400 border-slate-600 hover:bg-slate-700'
-                                    }`}
-                            >
-                                <span className="text-[10px] leading-tight uppercase tracking-wider opacity-80">Auto</span>
-                                <span className="text-sm leading-tight">{isAutoClaimEnabled ? 'ON' : 'OFF'}</span>
-                            </button>
-                        )}
+            {/* Auto-Claim Reminder */}
+            {isAutoClaimEnabled && (
+                <div className="flex items-start gap-2.5 bg-purple-900/80 border border-purple-500/40 rounded-xl px-3 py-2 max-w-xs animate-in slide-in-from-bottom-2 shadow-lg backdrop-blur-sm">
+                    <span className="text-purple-400 text-lg flex-shrink-0 mt-0.5">ℹ️</span>
+                    <div>
+                        <p className="text-purple-200 text-xs font-bold uppercase tracking-wider">Auto-Claim is Active</p>
+                        <p className="text-purple-300/90 text-[11px] leading-snug mt-0.5">
+                            Automatically claiming unowned squares for 1 coin as you walk. Unless turned off, it runs until you enclose a territory or run out of coins.
+                        </p>
                     </div>
-
-                    {/* Offer Modal */}
-                    <OfferModal
-                        isOpen={showOfferModal}
-                        onClose={() => setShowOfferModal(false)}
-                        onSubmit={(amount) => onMakeOffer(activeKey, amount)}
-                        maxBid={userBalance}
-                        minBid={2}
-                    />
-                </>
+                </div>
             )}
+
+            {/* Grouped Button Area */}
+            {(() => {
+                const showClaimButton = !isOwnedByMe && !isCapturedByOther && !myPendingOffer;
+                const showAutoButton = territoriesCount > 0;
+                const groupButtons = showClaimButton && showAutoButton;
+
+                if (!showClaimButton && !showAutoButton) return null;
+
+                return (
+                    <div className="flex flex-col items-center gap-3 transition-all duration-300">
+                        {/* Capture hint */}
+                        {showClaimButton && tilesCount >= 5 && territoriesCount === 0 && (
+                            <div className="flex items-start gap-2.5 bg-amber-900/70 border border-amber-500/40 rounded-xl px-3 py-2 max-w-xs animate-in slide-in-from-bottom-2">
+                                <span className="text-amber-400 text-lg flex-shrink-0 mt-0.5">💡</span>
+                                <div>
+                                    <p className="text-amber-200 text-xs font-semibold">Try a capture!</p>
+                                    <p className="text-amber-300/80 text-[11px] leading-snug mt-0.5">
+                                        Walk your claimed squares into a connected loop — the enclosed area fills automatically for bonus coins.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className={`flex items-center gap-3 transition-all duration-300 ${
+                            groupButtons ? 'bg-slate-900/50 backdrop-blur-md p-2 rounded-[2.5rem] border border-white/10 shadow-2xl' : ''
+                        }`}>
+                            {showClaimButton && (
+                                <button
+                                    onClick={() => {
+                                        if (isOwnedByOther) {
+                                            setShowOfferModal(true);
+                                        } else if (userBalance < 1) {
+                                            onGetCoins();
+                                        } else {
+                                            onClaim(activeKey);
+                                        }
+                                    }}
+                                    disabled={locationLoading}
+                                    className={`transition-all duration-300 font-bold py-3 px-6 rounded-full shadow-2xl flex items-center gap-2 text-base border-2 
+                                        ${isOwnedByOther
+                                            ? 'active:scale-95 bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-white/20'
+                                            : 'active:scale-95 bg-gradient-to-r from-indigo-500 to-purple-600 text-white border-white/20'
+                                        }`}
+                                    style={{
+                                        boxShadow: `0 0 20px ${isOwnedByOther ? '#10b981' : myColor}40`
+                                    }}
+                                >
+                                    {isOwnedByOther ? (
+                                        <>
+                                            <ShoppingCart className="w-4 h-4" />
+                                            MAKE OFFER
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Zap className={`fill-current w-4 h-4 ${isAutoClaimEnabled ? 'animate-pulse' : ''}`} />
+                                            {isAutoClaimEnabled ? 'AUTO-CLAIMING...' : 'CLAIM FOR 1 COIN'}
+                                        </>
+                                    )}
+                                </button>
+                            )}
+
+                            {showAutoButton && (
+                                <button 
+                                    onClick={onToggleAutoClaim}
+                                    className={`h-14 px-3 rounded-full flex flex-col items-center justify-center font-bold shadow-lg transition-all border-2
+                                        ${isAutoClaimEnabled 
+                                            ? 'bg-purple-600 text-white border-white animate-pulse shadow-purple-500/50' 
+                                            : 'bg-slate-800 text-slate-400 border-slate-600 hover:bg-slate-700'
+                                        }`}
+                                >
+                                    <span className="text-[10px] leading-tight uppercase tracking-wider opacity-80">Auto</span>
+                                    <span className="text-sm leading-tight">{isAutoClaimEnabled ? 'ON' : 'OFF'}</span>
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                );
+            })()}
+
+            {/* Offer Modal */}
+            <OfferModal
+                isOpen={showOfferModal}
+                onClose={() => setShowOfferModal(false)}
+                onSubmit={(amount) => onMakeOffer(activeKey, amount)}
+                maxBid={userBalance}
+                minBid={2}
+            />
         </div>
     );
 }
