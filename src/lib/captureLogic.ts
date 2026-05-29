@@ -108,13 +108,20 @@ function floodFill(
  */
 export function findEnclosedAreas(
     claims: Record<string, { ownerId: string; explorerName: string; color: string; status?: string }>,
-    playerId: string
+    playerId: string,
+    newTileKey?: string
 ): Array<{ perimeterSquares: string[]; enclosedSquares: string[] }> {
     const territories: Array<{ perimeterSquares: string[]; enclosedSquares: string[] }> = [];
-    const playerSquares = Object.keys(claims).filter(key => claims[key].ownerId === playerId);
+    
+    let playerSquares: string[];
+    if (newTileKey) {
+        playerSquares = [newTileKey];
+    } else {
+        playerSquares = Object.keys(claims).filter(key => claims[key].ownerId === playerId);
+    }
 
     console.log(`[FLOOD] Player squares (first 10):`, playerSquares.slice(0, 10));
-    console.log(`[FLOOD] Total player squares: ${playerSquares.length}`);
+    console.log(`[FLOOD] Total player squares checked: ${playerSquares.length}`);
 
     // Track which empty areas we've already processed
     const processedAreas = new Set<string>();

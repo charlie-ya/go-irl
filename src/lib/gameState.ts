@@ -476,7 +476,7 @@ export function useGameState(userLat?: number, userLng?: number, isMovingTooFast
             // Add optimistic new tile
             allUserClaims[gridKey] = newTile;
 
-            const enclosedAreas = findEnclosedAreas(allUserClaims, player.id);
+            const enclosedAreas = findEnclosedAreas(allUserClaims, player.id, gridKey);
             devLog(`[DEBUG] Territory Calc: Found ${enclosedAreas.length} enclosed areas (Scanned ${Object.keys(allUserClaims).length} tiles).`);
 
             // --- PERMANENT CAPTURE: Diff against existing territories ---
