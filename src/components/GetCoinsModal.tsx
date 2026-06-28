@@ -30,7 +30,7 @@ export function GetCoinsModal({ isOpen, onClose, onOpenReferral, onOpenCoinShop 
                 </div>
 
                 <p className="text-slate-300 text-sm">
-                    Coins are used to claim new squares. Here's how to earn more:
+                    Coins are used to claim new squares and upgrade your nest. Here's how to earn more:
                 </p>
 
                 {/* Option 1: Capture Territory */}
@@ -50,7 +50,24 @@ export function GetCoinsModal({ isOpen, onClose, onOpenReferral, onOpenCoinShop 
                     </div>
                 </div>
 
-                {/* Option 2: Invite Friends */}
+                {/* Option 2: Visit Nests */}
+                <div className="bg-slate-700/50 rounded-xl p-4 border border-slate-600">
+                    <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0 mt-0.5 p-1.5">
+                            <img src="/assets/nests/nest_level1.png" alt="Nest" className="w-full h-full object-contain" />
+                        </div>
+                        <div>
+                            <div className="text-white font-semibold">Visit Nests</div>
+                            <p className="text-slate-400 text-sm mt-1">
+                                Find other players' nests on the map and sign their guestbook.
+                                Earn <span className="text-yellow-400 font-medium">5–20 coins per visit</span> depending on the nest's level.
+                            </p>
+                            <div className="text-emerald-400 text-xs font-medium mt-2">✨ FREE — Explore the map!</div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Option 3: Invite Friends */}
                 <button
                     onClick={() => { onClose(); onOpenReferral(); }}
                     className="w-full bg-slate-700/50 hover:bg-slate-600/50 rounded-xl p-4 border border-slate-600 transition-all active:scale-[0.98] text-left"

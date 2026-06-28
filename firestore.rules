@@ -105,5 +105,17 @@ service cloud.firestore {
       // Only Cloud Functions (admin SDK) can delete
       allow delete: if false;
     }
+
+    // Nests collection
+    match /nests/{nestId} {
+      allow read: if true; // Anyone can see nests on the map
+      allow write: if false; // All writes via Cloud Functions (admin SDK)
+      
+      // Visits subcollection
+      match /visits/{visitId} {
+        allow read: if true; // Guestbook is public
+        allow write: if false; // Visits only via Cloud Function
+      }
+    }
   }
 }

@@ -45,6 +45,12 @@ export const deleteGameInformation = functions.https.onCall(async (request: any)
             isInactive: false
         }, { merge: true });
 
+        // 6. Delete Nest and all visitor records
+        const nestRef = db.collection('nests').doc(uid);
+        const nestVisitsSnap = await nestRef.collection('visits').get();
+        nestVisitsSnap.forEach(doc => bulkWriter.delete(doc.ref));
+        bulkWriter.delete(nestRef);
+
         // Await completion of all bulk operations
         await bulkWriter.close();
 

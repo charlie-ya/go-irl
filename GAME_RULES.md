@@ -14,11 +14,12 @@
 6. [Capturing Territory](#capturing-territory)
 7. [Offers & Trading](#offers--trading)
 8. [Ranks & Promotion](#ranks--promotion)
-9. [Exclusion Zones](#exclusion-zones)
-10. [Leaderboards](#leaderboards)
-11. [Referrals](#referrals)
-12. [Anti-Cheat Protections](#anti-cheat-protections)
-13. [Account & Data Management](#account--data-management)
+9. [Nests & Guestbooks](#nests--guestbooks)
+10. [Exclusion Zones](#exclusion-zones)
+11. [Leaderboards](#leaderboards)
+12. [Referrals](#referrals)
+13. [Anti-Cheat Protections](#anti-cheat-protections)
+14. [Account & Data Management](#account--data-management)
 
 ---
 
@@ -95,6 +96,7 @@ Coins are the sole currency in Roamin' Empire. They fuel every action:
 | **Referral: Friend signs up** | +10 coins |
 | **Referral: Friend claims 10 tiles** | +25 coins |
 | **Referral: Friend captures territory** | +50 coins |
+| **Nest Visit** | +5 to +20 coins (Visitor) / +0 to +10 coins (Owner) |
 | **In-App Purchase** (mobile only) | Coin packs (100 – 3,000 coins) |
 
 ### Spending Coins
@@ -103,6 +105,7 @@ Coins are the sole currency in Roamin' Empire. They fuel every action:
 |--------|------|
 | **Claim a square** | 1 coin |
 | **Make an offer on a tile** | 2+ coins (bid amount) |
+| **Upgrade Nest** | 500 or 1,000 coins |
 
 ### Capture Bonus Formula
 
@@ -241,6 +244,30 @@ For Minion rank, a player can initiate a **Promotion Ceremony**:
 
 Players who achieve Minion rank or higher unlock:
 - **Virtual Joystick** — A directional control that allows fine adjustment of the selected grid tile without physically walking. Movement is clamped to ±1 grid step from the player's actual GPS position.
+
+---
+
+## Nests & Guestbooks
+
+### What is a Nest?
+Your nest is your personal home base pinned to a real-world GPS location. Other players can visit your nest to sign the guestbook, generating coins for both the visitor and the owner.
+
+### Establishing and Moving
+- **Establishing**: Free. You can place your nest on your current location when standing on one of your claimed tiles. The nest icon is always available when on your own tile.
+- **Moving**: You can move your nest to a new location after a **5-day cooldown**. When moved, the **guestbook starts over empty**.
+
+### Visiting
+Other players can sign your guestbook if they are within **20 meters** of your nest. 
+- **Cooldown**: 24 hours per visitor per nest.
+- **Restriction**: You cannot visit your own nest.
+
+### Upgrade Levels & Rewards
+
+| Level | Name | Icon | Upgrade Cost | Visitor Earns | Owner Earns |
+|-------|------|------|-------------|---------------|-------------|
+| 1 | Nest | 🪹 | Free | 5 coins | 0 coins |
+| 2 | Dovecote | 🪹⭐ | 500 coins | 10 coins | 5 coins |
+| 3 | Eyrie | ⭐🪹⭐ | 1,000 coins | 20 coins | 10 coins |
 
 ---
 

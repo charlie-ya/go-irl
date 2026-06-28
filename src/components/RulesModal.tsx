@@ -33,6 +33,11 @@ export function RulesModal({ onClose }: RulesModalProps) {
             title: "Ranks & Ascension",
             icon: <Crown className="w-12 h-12 text-amber-400 mb-4" />,
             text: "You begin as a Lowly Vassal. By gathering with other players in real life, you can perform promotion ceremonies to Ascend in rank and unlock greater powers!"
+        },
+        {
+            title: "Nests & Guestbooks",
+            icon: <img src="/assets/nests/nest_level1.png" alt="Nest" className="w-12 h-12 mb-4 drop-shadow-md object-contain" />,
+            text: "Plant your nest at a real-world location. Visitors sign your guestbook to earn coins. Upgrade your nest to earn coins yourself! Three levels: 🪹 Nest → 🪹⭐ Dovecote → ⭐🪹⭐ Eyrie."
         }
     ];
 

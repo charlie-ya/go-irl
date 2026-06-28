@@ -16,6 +16,9 @@ import { ReferralPanel } from './components/ReferralPanel';
 import { LeaderboardPanel } from './components/LeaderboardPanel';
 import { ProfileStatsPanel } from './components/ProfileStatsPanel';
 import { RulesModal } from './components/RulesModal';
+import { NestModal } from './components/NestModal';
+import { NestPlacementFlow } from './components/NestPlacementFlow';
+import { NestOnboardingPrompt } from './components/NestOnboardingPrompt';
 import { AppStoreBadge, PlayStoreBadge } from './components/Badges';
 import { useGeolocation, isAndroidDevModeEnabled } from './lib/useGeolocation';
 import { useGameState } from './lib/gameState';
@@ -25,6 +28,8 @@ import { usePushNotifications } from './lib/usePushNotifications';
 import { useOffers, useMyOutgoingOffers } from './lib/useOffers';
 import { useBlockLeaderboard } from './lib/useBlockLeaderboard';
 import { useExclusionZones } from './lib/useExclusionZones';
+import { useNests } from './lib/useNests';
+import { type Nest, createOrMoveNest } from './lib/nests';
 import { auth, logout } from './lib/firebase';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
@@ -58,6 +63,8 @@ function App() {
   const [dismissLocationError, setDismissLocationError] = useState(false);
   const [showAutoClaimTutorial, setShowAutoClaimTutorial] = useState(false);
   const [isAutoClaimEnabled, setIsAutoClaimEnabled] = useState(false);
+  const [selectedNest, setSelectedNest] = useState<Nest | null>(null);
+  const [showNestPlacementFlow, setShowNestPlacementFlow] = useState(false);
   const { isSupported, requestPermissionAndRegister } = usePushNotifications();
   const mapInstanceRef = useRef<mapboxgl.Map | null>(null);
 
@@ -109,6 +116,8 @@ function App() {
   
   // Load Exclusion Zones (Global/Regional)
   const { zones } = useExclusionZones(userLocation.lat ?? undefined, userLocation.lng ?? undefined);
+  const { nests } = useNests();
+  const myNest = nests.find(n => n.ownerId === player?.id);
   const {
     claims, player,
     claimSquare, makeOffer, acceptOffer, rejectOffer,
@@ -324,6 +333,11 @@ function App() {
           onLogout={() => logout()}
           lat={userLocation.lat ?? undefined}
           lng={userLocation.lng ?? undefined}
+          myNest={myNest ? {
+            level: myNest.level,
+            title: myNest.title,
+            totalUniqueVisitors: myNest.totalUniqueVisitors
+          } : undefined}
         />
       </div>
 
@@ -398,6 +412,8 @@ function App() {
         selectedGridKey={selectedGridKey}
         claims={claims}
         exclusionZones={zones}
+        nests={nests}
+        onNestClick={(nest) => setSelectedNest(nest)}
         viewRadiusMeters={player?.rank === 'Minion' || player?.rank === 'Centurion' ? 300 : 200}
         onMapReady={(m) => { mapInstanceRef.current = m; }}
       />
@@ -495,6 +511,8 @@ function App() {
         territoriesCount={territoriesCount}
         isAutoClaimEnabled={isAutoClaimEnabled}
         onToggleAutoClaim={() => setIsAutoClaimEnabled(prev => !prev)}
+        hasNest={!!myNest}
+        onCreateNest={() => setShowNestPlacementFlow(true)}
       />
       )}
 
@@ -663,6 +681,51 @@ function App() {
       {showRules && (
         <RulesModal onClose={() => setShowRules(false)} />
       )}
+
+      {/* Nest Modal */}
+      {selectedNest && (
+        <NestModal 
+          nest={selectedNest} 
+          userLat={userLocation.lat} 
+          userLng={userLocation.lng} 
+          onClose={() => setSelectedNest(null)} 
+        />
+      )}
+
+      {/* Nest Placement Flow & Onboarding */}
+      <NestOnboardingPrompt
+        tilesCount={tilesCount}
+        hasNest={!!myNest}
+        onStartPlacement={() => setShowNestPlacementFlow(true)}
+      />
+
+      <NestPlacementFlow
+        isOpen={showNestPlacementFlow}
+        onClose={() => setShowNestPlacementFlow(false)}
+        hasNest={!!myNest}
+        onCreateNest={async () => {
+          if (!userLocation.lat || !userLocation.lng || !player) throw new Error("Location or player missing.");
+          const { getGeohash } = await import('./lib/geohashUtils');
+          const hash = getGeohash(userLocation.lat, userLocation.lng);
+          await createOrMoveNest(userLocation.lat, userLocation.lng, hash, `${player.explorerName}'s Nest`);
+        }}
+        onShare={async () => {
+          if (!mapInstanceRef.current || !player) return;
+          try {
+            const { captureNestShareCard, shareNestCard } = await import('./lib/shareCardService');
+            const blob = await captureNestShareCard(mapInstanceRef.current, {
+              explorerName: player.explorerName,
+              rank: player.rank,
+              colour: player.color,
+              playerId: player.id,
+              nestTitle: `${player.explorerName}'s Nest`,
+            });
+            await shareNestCard(blob, player.id, `${player.explorerName}'s Nest`);
+          } catch (e) {
+            console.error('[ShareNestCard] Failed:', e);
+          }
+        }}
+      />
 
     </div>
   );

@@ -41,6 +41,8 @@ interface ControlsProps {
     territoriesCount: number;
     isAutoClaimEnabled: boolean;
     onToggleAutoClaim: () => void;
+    hasNest?: boolean;
+    onCreateNest?: () => void;
 }
 
 export function Controls({
@@ -48,7 +50,8 @@ export function Controls({
     onClaim, onMakeOffer, userBalance, onGetCoins,
     onAffirm, onCompleteCeremony, activeCeremony, playerRank,
     myId, myColor, claims, myOutgoingOffers,
-    tilesCount, territoriesCount, isAutoClaimEnabled, onToggleAutoClaim
+    tilesCount, territoriesCount, isAutoClaimEnabled, onToggleAutoClaim,
+    hasNest, onCreateNest
 }: ControlsProps) {
     const currentKey = locationLoading ? '...' : getGridKey(lat, lng);
     const activeKey = selectedGridKey || currentKey;
@@ -115,6 +118,22 @@ export function Controls({
                                         Walk to a new square to claim again!
                                     </span>
                                 </div>
+                            )}
+
+                            {/* Build / Move Nest Button */}
+                            {onCreateNest && (
+                                <button
+                                    onClick={onCreateNest}
+                                    className="mt-3 flex flex-col items-center justify-center transition-transform active:scale-95 group"
+                                    title={hasNest ? "Move Nest Here" : "Make your Nest here"}
+                                >
+                                    <div className="w-10 h-10 filter drop-shadow-[0_0_8px_rgba(251,191,36,0.3)] group-hover:drop-shadow-[0_0_12px_rgba(251,191,36,0.6)] transition-all">
+                                        <img src="/assets/nests/nest_level1.png" alt="Nest" className="w-full h-full object-contain" />
+                                    </div>
+                                    <span className="text-[10px] font-bold text-amber-400 uppercase tracking-widest mt-1">
+                                        {hasNest ? "Move Nest" : "Make Nest"}
+                                    </span>
+                                </button>
                             )}
                         </>
                     ) : (

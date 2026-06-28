@@ -8,6 +8,7 @@ import { NOLLI_MAP_STYLE } from '../lib/mapStyle';
 import { registerNolliPatterns } from '../lib/nolliPatterns';
 
 import { getExclusionZonesGeoJSON, type ExclusionZone } from '../lib/exclusionZones';
+import { type Nest } from '../lib/nests';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
@@ -39,10 +40,12 @@ interface MapBoardProps {
     claims: Record<string, { color: string; explorerName: string; status?: string }>;
     exclusionZones: ExclusionZone[];
     viewRadiusMeters?: number;
+    nests?: Nest[];
+    onNestClick?: (nest: Nest) => void;
     onMapReady?: (map: mapboxgl.Map) => void;
 }
 
-export function MapBoard({ lat, lng, selectedGridKey, claims, exclusionZones, viewRadiusMeters = 200, onMapReady }: MapBoardProps) {
+export function MapBoard({ lat, lng, selectedGridKey, claims, exclusionZones, viewRadiusMeters = 200, nests = [], onNestClick, onMapReady }: MapBoardProps) {
     const mapRef = useRef<any>(null);
 
     // Initial View State — defaults to NYC if GPS is still loading
@@ -369,6 +372,35 @@ export function MapBoard({ lat, lng, selectedGridKey, claims, exclusionZones, vi
                     }}
                 />
             </Source>
+
+            {/* Nests Layer using HTML Markers */}
+            {nests.map(nest => {
+                let imgSrc = '/assets/nests/nest_level1.png';
+                if (nest.level === 2) imgSrc = '/assets/nests/nest_level2.png';
+                if (nest.level === 3) imgSrc = '/assets/nests/nest_level3.png';
+
+                return (
+                    <Marker 
+                        key={nest.id} 
+                        longitude={nest.location.longitude} 
+                        latitude={nest.location.latitude} 
+                        anchor="bottom"
+                        onClick={(e) => {
+                            e.originalEvent.stopPropagation();
+                            if (onNestClick) onNestClick(nest);
+                        }}
+                    >
+                        <div className="cursor-pointer group flex flex-col items-center">
+                            <div className="w-12 h-12 flex items-center justify-center group-hover:scale-110 transition-transform drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)]">
+                                <img src={imgSrc} alt="Nest" className="w-full h-full object-contain pointer-events-none" />
+                            </div>
+                            <div className="mt-1 bg-black/70 text-white text-[10px] px-1.5 py-0.5 rounded shadow-sm opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                                {nest.title}
+                            </div>
+                        </div>
+                    </Marker>
+                );
+            })}
 
             {/* User Marker — only shown when valid GPS coords exist */}
             {hasValidCoords && (

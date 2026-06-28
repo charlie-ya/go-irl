@@ -19,6 +19,11 @@ interface ProfileStatsPanelProps {
     // Current player location, needed for Apple Maps link
     lat?: number;
     lng?: number;
+    myNest?: {
+        level: number;
+        title: string;
+        totalUniqueVisitors: number;
+    };
 }
 
 export function ProfileStatsPanel({ 
@@ -37,6 +42,7 @@ export function ProfileStatsPanel({
     onLogout,
     lat,
     lng,
+    myNest
 }: ProfileStatsPanelProps) {
     const [isOpen, setIsOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -105,14 +111,38 @@ export function ProfileStatsPanel({
 
             {/* Dropdown Menu */}
             {isOpen && (
-                <div className="absolute top-[calc(100%+6px)] right-0 min-w-[170px] bg-slate-900/95 backdrop-blur-md border border-slate-700 rounded-xl shadow-2xl py-1.5 flex flex-col z-[2100] animate-in slide-in-from-top-2 fade-in">
+                <div className="absolute top-[calc(100%+6px)] right-0 min-w-[240px] bg-slate-900/95 backdrop-blur-md border border-slate-700 rounded-xl shadow-2xl p-2 flex flex-col z-[2100] animate-in slide-in-from-top-2 fade-in">
                     
                     {canAscend && (
-                        <button onClick={() => { setIsOpen(false); onAscend(); }} className="flex items-center gap-2 px-3 py-2 text-amber-400 hover:text-amber-300 hover:bg-slate-800 transition-colors text-left w-full group font-bold">
+                        <button onClick={() => { setIsOpen(false); onAscend(); }} className="flex items-center gap-2 px-3 py-2 text-amber-400 hover:text-amber-300 hover:bg-slate-800 transition-colors text-left w-full group font-bold mb-1">
                             <Crown className="w-4 h-4 group-hover:scale-110 transition-transform" />
                             <span className="text-sm">Ascend in Rank</span>
                         </button>
                     )}
+
+                    {/* Nest Info */}
+                    <div className="bg-slate-800 p-3 rounded-lg border border-slate-700/50 flex flex-col gap-2 mb-2">
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Home Base</div>
+                        {myNest ? (
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <span className="w-6 h-6 inline-flex items-center">
+                                        <img src={myNest.level === 1 ? '/assets/nests/nest_level1.png' : myNest.level === 2 ? '/assets/nests/nest_level2.png' : '/assets/nests/nest_level3.png'} alt="Nest" className="w-full h-full object-contain" />
+                                    </span>
+                                    <div>
+                                        <div className="text-white font-bold text-sm leading-tight">{myNest.title}</div>
+                                        <div className="text-slate-400 text-[10px]">{myNest.level === 1 ? 'Nest' : myNest.level === 2 ? 'Dovecote' : 'Eyrie'}</div>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <div className="text-emerald-400 font-bold text-sm">{myNest.totalUniqueVisitors}</div>
+                                    <div className="text-slate-500 text-[10px]">visitors</div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-slate-500 text-sm italic py-1">No nest established yet</div>
+                        )}
+                    </div>
                     
                     <button onClick={() => { setIsOpen(false); onEditProfile(); }} className="flex items-center gap-2 px-3 py-2 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors text-left w-full group">
                         <Settings className="w-4 h-4 group-hover:rotate-90 transition-transform" />
