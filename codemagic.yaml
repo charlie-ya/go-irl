@@ -69,9 +69,8 @@ workflows:
             --type IOS_APP_STORE \
             --create
           
-          # Set version: use BUILD_NUMBER to guarantee a unique, always-increasing version
-          # e.g. build 52 -> version 1.2.52, build 53 -> version 1.2.53
-          NEW_VERSION="1.2.${BUILD_NUMBER}"
+          # Set version to 1.1.4 (keep in sync with Android)
+          NEW_VERSION="1.1.4"
           echo "Setting version to $NEW_VERSION (build $BUILD_NUMBER)"
           
           # Force-write into Info.plist (this is what ends up in the IPA)
