@@ -72,6 +72,16 @@ workflows:
           # Auto-increment the build number so Apple doesn't reject it as a duplicate
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" ios/App/App/Info.plist
           
+          # Auto-increment the patch version (e.g. 1.1.4 -> 1.1.5) so Apple accepts a new version string
+          CURRENT_VERSION=$(grep -m1 'MARKETING_VERSION' ios/App/App.xcodeproj/project.pbxproj | sed 's/[^0-9.]//g')
+          MAJOR=$(echo "$CURRENT_VERSION" | cut -d. -f1)
+          MINOR=$(echo "$CURRENT_VERSION" | cut -d. -f2)
+          PATCH=$(echo "$CURRENT_VERSION" | cut -d. -f3)
+          NEW_PATCH=$((PATCH + 1))
+          NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
+          echo "Bumping version: $CURRENT_VERSION -> $NEW_VERSION"
+          sed -i '' "s/MARKETING_VERSION = $CURRENT_VERSION;/MARKETING_VERSION = $NEW_VERSION;/g" ios/App/App.xcodeproj/project.pbxproj
+          
           # 3. Modify Xcode project to use the profiles
           keychain add-certificates
           
