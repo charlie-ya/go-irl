@@ -117,7 +117,7 @@ function App() {
   // Load Exclusion Zones (Global/Regional)
   const { zones } = useExclusionZones(userLocation.lat ?? undefined, userLocation.lng ?? undefined);
   const { nests } = useNests();
-  const myNest = nests.find(n => n.ownerId === player?.id);
+  
   const {
     claims, player,
     claimSquare, makeOffer, acceptOffer, rejectOffer,
@@ -129,6 +129,8 @@ function App() {
     userLocation.isMovingTooFast,
     zones
   );
+
+  const myNest = nests.find(n => n.ownerId === player?.id);
 
   const pendingOffers = useOffers();
   const myOutgoingOffers = useMyOutgoingOffers();
