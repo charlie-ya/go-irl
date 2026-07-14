@@ -375,6 +375,9 @@ export function MapBoard({ lat, lng, selectedGridKey, claims, exclusionZones, vi
 
             {/* Nests Layer using HTML Markers */}
             {nests.map(nest => {
+                // Defensive check to prevent Mapbox internal ReferenceError crash
+                if (nest.location?.latitude == null || nest.location?.longitude == null) return null;
+
                 let imgSrc = '/assets/nests/nest_level1.png';
                 if (nest.level === 2) imgSrc = '/assets/nests/nest_level2.png';
                 if (nest.level === 3) imgSrc = '/assets/nests/nest_level3.png';
