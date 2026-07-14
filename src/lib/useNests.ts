@@ -19,8 +19,8 @@ export function useNests() {
                     id: doc.id,
                     ownerId: data.ownerId,
                     location: {
-                        latitude: data.location.latitude,
-                        longitude: data.location.longitude
+                        latitude: typeof data.location.latitude === 'number' ? data.location.latitude : data.location._latitude,
+                        longitude: typeof data.location.longitude === 'number' ? data.location.longitude : data.location._longitude
                     },
                     geohash: data.geohash,
                     title: data.title,
